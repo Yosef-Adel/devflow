@@ -1,14 +1,16 @@
-import Database from "better-sqlite3";
-import { app } from "electron";
-import path from "path";
+import { gte, lte, and, sql, desc, isNotNull } from "drizzle-orm";
+import { getDb, activities, type NewActivity, type Activity } from "../db";
 import type { Category } from "./categorizer";
 
+// Re-export types for external use
+export type { Activity, NewActivity };
+
 export interface ActivityRecord {
-  id?: number;
+  id: number;
   app_name: string;
-  window_title: string;
+  window_title: string | null;
   url: string | null;
-  category: Category;
+  category: string | null;
   project_name: string | null;
   file_name: string | null;
   file_type: string | null;
@@ -18,20 +20,19 @@ export interface ActivityRecord {
   end_time: number;
   duration: number;
   context_json: string | null;
-  created_at?: string;
+  created_at: string | null;
 }
 
 class ActivityDatabase {
-  private db: Database.Database;
+  private db = getDb();
 
   constructor() {
-    const dbPath = path.join(app.getPath("userData"), "activity-tracker.db");
-    this.db = new Database(dbPath);
     this.initDatabase();
   }
 
   private initDatabase(): void {
-    this.db.exec(`
+    // Create table if not exists using raw SQL (Drizzle doesn't auto-create)
+    this.db.run(sql`
       CREATE TABLE IF NOT EXISTS activities (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         app_name TEXT NOT NULL,
@@ -47,206 +48,282 @@ class ActivityDatabase {
         end_time INTEGER NOT NULL,
         duration INTEGER NOT NULL,
         context_json TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_app_name ON activities(app_name);
-      CREATE INDEX IF NOT EXISTS idx_category ON activities(category);
-      CREATE INDEX IF NOT EXISTS idx_project ON activities(project_name);
-      CREATE INDEX IF NOT EXISTS idx_start_time ON activities(start_time);
-      CREATE INDEX IF NOT EXISTS idx_date ON activities(created_at);
-    `);
-  }
-
-  insertActivity(activity: Omit<ActivityRecord, "id" | "created_at">): number {
-    const stmt = this.db.prepare(`
-      INSERT INTO activities (
-        app_name, window_title, url, category,
-        project_name, file_name, file_type, language,
-        domain, start_time, end_time, duration, context_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
     `);
 
-    const result = stmt.run(
-      activity.app_name,
-      activity.window_title,
-      activity.url,
-      activity.category,
-      activity.project_name,
-      activity.file_name,
-      activity.file_type,
-      activity.language,
-      activity.domain,
-      activity.start_time,
-      activity.end_time,
-      activity.duration,
-      activity.context_json,
-    );
-
-    return result.lastInsertRowid as number;
+    // Create indexes for faster queries
+    this.db.run(sql`CREATE INDEX IF NOT EXISTS idx_app_name ON activities(app_name)`);
+    this.db.run(sql`CREATE INDEX IF NOT EXISTS idx_category ON activities(category)`);
+    this.db.run(sql`CREATE INDEX IF NOT EXISTS idx_project ON activities(project_name)`);
+    this.db.run(sql`CREATE INDEX IF NOT EXISTS idx_start_time ON activities(start_time)`);
   }
 
-  getActivitiesInRange(startTime: number, endTime: number): ActivityRecord[] {
-    const stmt = this.db.prepare(`
-      SELECT * FROM activities
-      WHERE start_time >= ? AND start_time <= ?
-      ORDER BY start_time DESC
-    `);
-
-    return stmt.all(startTime, endTime) as ActivityRecord[];
-  }
-
-  getAppUsage(startTime: number, endTime: number): Array<{
+  // Insert a new activity
+  insertActivity(activity: {
     app_name: string;
-    total_duration: number;
-    session_count: number;
-  }> {
-    const stmt = this.db.prepare(`
-      SELECT
-        app_name,
-        SUM(duration) as total_duration,
-        COUNT(*) as session_count
-      FROM activities
-      WHERE start_time >= ? AND start_time <= ?
-      GROUP BY app_name
-      ORDER BY total_duration DESC
-    `);
+    window_title: string;
+    url: string | null;
+    category: Category;
+    project_name: string | null;
+    file_name: string | null;
+    file_type: string | null;
+    language: string | null;
+    domain: string | null;
+    start_time: number;
+    end_time: number;
+    duration: number;
+    context_json: string | null;
+  }): number {
+    const result = this.db
+      .insert(activities)
+      .values({
+        appName: activity.app_name,
+        windowTitle: activity.window_title,
+        url: activity.url,
+        category: activity.category,
+        projectName: activity.project_name,
+        fileName: activity.file_name,
+        fileType: activity.file_type,
+        language: activity.language,
+        domain: activity.domain,
+        startTime: activity.start_time,
+        endTime: activity.end_time,
+        duration: activity.duration,
+        contextJson: activity.context_json,
+      })
+      .returning({ id: activities.id })
+      .get();
 
-    return stmt.all(startTime, endTime) as Array<{
-      app_name: string;
-      total_duration: number;
-      session_count: number;
-    }>;
+    return result?.id ?? 0;
   }
 
-  getCategoryBreakdown(startTime: number, endTime: number): Array<{
-    category: Category;
-    total_duration: number;
-    session_count: number;
-  }> {
-    const stmt = this.db.prepare(`
-      SELECT
-        category,
-        SUM(duration) as total_duration,
-        COUNT(*) as session_count
-      FROM activities
-      WHERE start_time >= ? AND start_time <= ?
-      GROUP BY category
-      ORDER BY total_duration DESC
-    `);
+  // Get all activities in a time range
+  getActivitiesInRange(startTime: number, endTime: number): ActivityRecord[] {
+    const results = this.db
+      .select()
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime)
+        )
+      )
+      .orderBy(desc(activities.startTime))
+      .all();
 
-    return stmt.all(startTime, endTime) as Array<{
+    return results.map(this.mapToRecord);
+  }
+
+  // Get app usage aggregated by app name
+  getAppUsage(
+    startTime: number,
+    endTime: number
+  ): Array<{ app_name: string; total_duration: number; session_count: number }> {
+    const results = this.db
+      .select({
+        app_name: activities.appName,
+        total_duration: sql<number>`sum(${activities.duration})`,
+        session_count: sql<number>`count(*)`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime)
+        )
+      )
+      .groupBy(activities.appName)
+      .orderBy(desc(sql`sum(${activities.duration})`))
+      .all();
+
+    return results;
+  }
+
+  // Get category breakdown
+  getCategoryBreakdown(
+    startTime: number,
+    endTime: number
+  ): Array<{ category: Category; total_duration: number; session_count: number }> {
+    const results = this.db
+      .select({
+        category: activities.category,
+        total_duration: sql<number>`sum(${activities.duration})`,
+        session_count: sql<number>`count(*)`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime)
+        )
+      )
+      .groupBy(activities.category)
+      .orderBy(desc(sql`sum(${activities.duration})`))
+      .all();
+
+    return results as Array<{
       category: Category;
       total_duration: number;
       session_count: number;
     }>;
   }
 
-  getProjectTime(startTime: number, endTime: number): Array<{
-    project_name: string;
-    total_duration: number;
-    session_count: number;
-  }> {
-    const stmt = this.db.prepare(`
-      SELECT
-        project_name,
-        SUM(duration) as total_duration,
-        COUNT(*) as session_count
-      FROM activities
-      WHERE start_time >= ? AND start_time <= ? AND project_name IS NOT NULL
-      GROUP BY project_name
-      ORDER BY total_duration DESC
-    `);
+  // Get project time aggregated
+  getProjectTime(
+    startTime: number,
+    endTime: number
+  ): Array<{ project_name: string; total_duration: number; session_count: number }> {
+    const results = this.db
+      .select({
+        project_name: activities.projectName,
+        total_duration: sql<number>`sum(${activities.duration})`,
+        session_count: sql<number>`count(*)`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime),
+          isNotNull(activities.projectName)
+        )
+      )
+      .groupBy(activities.projectName)
+      .orderBy(desc(sql`sum(${activities.duration})`))
+      .all();
 
-    return stmt.all(startTime, endTime) as Array<{
+    return results as Array<{
       project_name: string;
       total_duration: number;
       session_count: number;
     }>;
   }
 
-  getDomainUsage(startTime: number, endTime: number): Array<{
-    domain: string;
-    total_duration: number;
-    session_count: number;
-  }> {
-    const stmt = this.db.prepare(`
-      SELECT
-        domain,
-        SUM(duration) as total_duration,
-        COUNT(*) as session_count
-      FROM activities
-      WHERE start_time >= ? AND start_time <= ? AND domain IS NOT NULL
-      GROUP BY domain
-      ORDER BY total_duration DESC
-    `);
+  // Get domain usage
+  getDomainUsage(
+    startTime: number,
+    endTime: number
+  ): Array<{ domain: string; total_duration: number; session_count: number }> {
+    const results = this.db
+      .select({
+        domain: activities.domain,
+        total_duration: sql<number>`sum(${activities.duration})`,
+        session_count: sql<number>`count(*)`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime),
+          isNotNull(activities.domain)
+        )
+      )
+      .groupBy(activities.domain)
+      .orderBy(desc(sql`sum(${activities.duration})`))
+      .all();
 
-    return stmt.all(startTime, endTime) as Array<{
+    return results as Array<{
       domain: string;
       total_duration: number;
       session_count: number;
     }>;
   }
 
-  getHourlyPattern(startTime: number, endTime: number): Array<{
-    hour: string;
-    category: Category;
-    total_duration: number;
-  }> {
-    const stmt = this.db.prepare(`
-      SELECT
-        strftime('%H', datetime(start_time/1000, 'unixepoch', 'localtime')) as hour,
-        category,
-        SUM(duration) as total_duration
-      FROM activities
-      WHERE start_time >= ? AND start_time <= ?
-      GROUP BY hour, category
-      ORDER BY hour, total_duration DESC
-    `);
+  // Get hourly pattern for productivity analysis
+  getHourlyPattern(
+    startTime: number,
+    endTime: number
+  ): Array<{ hour: string; category: Category; total_duration: number }> {
+    const results = this.db
+      .select({
+        hour: sql<string>`strftime('%H', datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`,
+        category: activities.category,
+        total_duration: sql<number>`sum(${activities.duration})`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime)
+        )
+      )
+      .groupBy(
+        sql`strftime('%H', datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`,
+        activities.category
+      )
+      .orderBy(sql`hour`)
+      .all();
 
-    return stmt.all(startTime, endTime) as Array<{
+    return results as Array<{
       hour: string;
       category: Category;
       total_duration: number;
     }>;
   }
 
-  getDailyTotals(days: number): Array<{
-    date: string;
-    total_duration: number;
-    session_count: number;
-  }> {
-    const stmt = this.db.prepare(`
-      SELECT
-        DATE(datetime(start_time/1000, 'unixepoch', 'localtime')) as date,
-        SUM(duration) as total_duration,
-        COUNT(*) as session_count
-      FROM activities
-      WHERE start_time >= ?
-      GROUP BY date
-      ORDER BY date DESC
-    `);
-
+  // Get daily totals for the last N days
+  getDailyTotals(
+    days: number
+  ): Array<{ date: string; total_duration: number; session_count: number }> {
     const startTime = Date.now() - days * 24 * 60 * 60 * 1000;
-    return stmt.all(startTime) as Array<{
-      date: string;
-      total_duration: number;
-      session_count: number;
-    }>;
+
+    const results = this.db
+      .select({
+        date: sql<string>`date(datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`,
+        total_duration: sql<number>`sum(${activities.duration})`,
+        session_count: sql<number>`count(*)`,
+      })
+      .from(activities)
+      .where(gte(activities.startTime, startTime))
+      .groupBy(sql`date(datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`)
+      .orderBy(desc(sql`date`))
+      .all();
+
+    return results;
   }
 
+  // Get total tracked time in range
   getTotalTrackedTime(startTime: number, endTime: number): number {
-    const stmt = this.db.prepare(`
-      SELECT SUM(duration) as total FROM activities
-      WHERE start_time >= ? AND start_time <= ?
-    `);
+    const result = this.db
+      .select({
+        total: sql<number>`sum(${activities.duration})`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime)
+        )
+      )
+      .get();
 
-    const result = stmt.get(startTime, endTime) as { total: number | null };
-    return result.total || 0;
+    return result?.total ?? 0;
   }
 
+  // Map database row to ActivityRecord (for compatibility)
+  private mapToRecord(row: Activity): ActivityRecord {
+    return {
+      id: row.id,
+      app_name: row.appName,
+      window_title: row.windowTitle,
+      url: row.url,
+      category: row.category,
+      project_name: row.projectName,
+      file_name: row.fileName,
+      file_type: row.fileType,
+      language: row.language,
+      domain: row.domain,
+      start_time: row.startTime,
+      end_time: row.endTime,
+      duration: row.duration,
+      context_json: row.contextJson,
+      created_at: row.createdAt,
+    };
+  }
+
+  // Close is not needed with Drizzle, but keep for API compatibility
   close(): void {
-    this.db.close();
+    // Drizzle handles connection management
   }
 }
 

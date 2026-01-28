@@ -37,6 +37,7 @@ class ActivityCategorizer {
           "Xcode",
           "Android Studio",
           "Terminal",
+          "WezTerm",
           "iTerm",
           "Warp",
           "Hyper",
@@ -51,7 +52,16 @@ class ActivityCategorizer {
           "npmjs.com",
           "localhost",
         ],
-        keywords: ["debug", "code", "terminal", "git", "npm", "yarn", "build"],
+        keywords: [
+          "debug",
+          "code",
+          "terminal",
+          "git",
+          "npm",
+          "yarn",
+          "build",
+          "ta",
+        ],
       },
       communication: {
         apps: [
@@ -131,11 +141,23 @@ class ActivityCategorizer {
           "arxiv.org",
           "scholar.google.com",
         ],
-        keywords: ["search", "research", "article", "tutorial", "learn", "wiki"],
+        keywords: [
+          "search",
+          "research",
+          "article",
+          "tutorial",
+          "learn",
+          "wiki",
+        ],
       },
       email: {
         apps: ["Mail", "Outlook", "Thunderbird", "Spark", "Airmail"],
-        domains: ["gmail.com", "outlook.com", "mail.google.com", "mail.yahoo.com"],
+        domains: [
+          "gmail.com",
+          "outlook.com",
+          "mail.google.com",
+          "mail.yahoo.com",
+        ],
         keywords: ["email", "inbox", "compose"],
       },
       design: {
