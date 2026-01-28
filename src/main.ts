@@ -1,23 +1,27 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
+import { TimeTracker } from "./main/tracker";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
 
+let mainWindow: BrowserWindow | null = null;
+let tracker: TimeTracker | null = null;
+
 const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
   });
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -26,31 +30,88 @@ const createWindow = () => {
     );
   }
 
-  // Open the DevTools.
   mainWindow.webContents.openDevTools();
+
+  // Initialize time tracker
+  initializeTracker();
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+async function initializeTracker() {
+  tracker = new TimeTracker();
+
+  tracker.setOnActivityChange((activity) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("activity-changed", activity);
+    }
+  });
+
+  await tracker.start();
+}
+
+// IPC Handlers
+ipcMain.handle("tracker:getStatus", () => {
+  return tracker?.getStatus() || null;
+});
+
+ipcMain.handle("tracker:getAppUsage", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getAppUsage(startTime, endTime) || [];
+});
+
+ipcMain.handle("tracker:getCategoryBreakdown", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getCategoryBreakdown(startTime, endTime) || [];
+});
+
+ipcMain.handle("tracker:getProjectTime", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getProjectTime(startTime, endTime) || [];
+});
+
+ipcMain.handle("tracker:getDomainUsage", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getDomainUsage(startTime, endTime) || [];
+});
+
+ipcMain.handle("tracker:getHourlyPattern", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getHourlyPattern(startTime, endTime) || [];
+});
+
+ipcMain.handle("tracker:getDailyTotals", (_event, days: number) => {
+  return tracker?.getDatabase().getDailyTotals(days) || [];
+});
+
+ipcMain.handle("tracker:getTotalTime", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getTotalTrackedTime(startTime, endTime) || 0;
+});
+
+ipcMain.handle("tracker:getActivities", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getActivitiesInRange(startTime, endTime) || [];
+});
+
+ipcMain.handle("tracker:getCategoryColor", (_event, category: string) => {
+  return tracker?.getCategorizer().getCategoryColor(category as never) || "#64748B";
+});
+
+ipcMain.handle("tracker:getAllCategories", () => {
+  return tracker?.getCategorizer().getAllCategories() || [];
+});
+
 app.on("ready", createWindow);
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
+  if (tracker) {
+    tracker.shutdown();
+  }
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
 app.on("activate", () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
+app.on("before-quit", () => {
+  if (tracker) {
+    tracker.shutdown();
+  }
+});

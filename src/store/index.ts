@@ -1,10 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { appReducer, userReducer } from './slices';
+import { appReducer, userReducer, trackingReducer } from './slices';
 
 export const store = configureStore({
   reducer: {
     app: appReducer,
     user: userReducer,
+    tracking: trackingReducer,
   },
 });
 

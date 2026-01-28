@@ -28,6 +28,7 @@
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron-forge/plugin-vite": "^7.11.1",
     "@electron/fuses": "^1.8.0",
+    "@electron/rebuild": "^4.0.3",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^19.2.10",
@@ -46,7 +47,9 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
+    "better-sqlite3": "^12.6.2",
     "electron-squirrel-startup": "^1.0.1",
+    "get-windows": "^9.2.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-redux": "^9.2.0",
