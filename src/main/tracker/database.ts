@@ -234,9 +234,11 @@ class ActivityDatabase {
     startTime: number,
     endTime: number
   ): Array<{ hour: string; category: Category; total_duration: number }> {
+    const hourExpr = sql<string>`strftime('%H', datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`;
+
     const results = this.db
       .select({
-        hour: sql<string>`strftime('%H', datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`,
+        hour: hourExpr,
         category: activities.category,
         total_duration: sql<number>`sum(${activities.duration})`,
       })
@@ -247,11 +249,8 @@ class ActivityDatabase {
           lte(activities.startTime, endTime)
         )
       )
-      .groupBy(
-        sql`strftime('%H', datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`,
-        activities.category
-      )
-      .orderBy(sql`hour`)
+      .groupBy(hourExpr, activities.category)
+      .orderBy(hourExpr)
       .all();
 
     return results as Array<{
@@ -266,17 +265,18 @@ class ActivityDatabase {
     days: number
   ): Array<{ date: string; total_duration: number; session_count: number }> {
     const startTime = Date.now() - days * 24 * 60 * 60 * 1000;
+    const dateExpr = sql<string>`date(datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`;
 
     const results = this.db
       .select({
-        date: sql<string>`date(datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`,
+        date: dateExpr,
         total_duration: sql<number>`sum(${activities.duration})`,
         session_count: sql<number>`count(*)`,
       })
       .from(activities)
       .where(gte(activities.startTime, startTime))
-      .groupBy(sql`date(datetime(${activities.startTime}/1000, 'unixepoch', 'localtime'))`)
-      .orderBy(desc(sql`date`))
+      .groupBy(dateExpr)
+      .orderBy(desc(dateExpr))
       .all();
 
     return results;

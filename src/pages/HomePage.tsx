@@ -39,14 +39,23 @@ export function HomePage() {
     dispatch(fetchTrackerStatus());
     dispatch(setDateRangeToday());
 
+    // Listen for activity changes and refresh data
     const unsubscribe = window.electronAPI.onActivityChanged((activity) => {
       dispatch(setCurrentActivity(activity));
+      // Refresh dashboard data when activity changes
+      dispatch(fetchDashboardData({ start: dateRange.start, end: Date.now() }));
     });
+
+    // Also set up periodic refresh every 10 seconds for live updates
+    const refreshInterval = setInterval(() => {
+      dispatch(fetchDashboardData({ start: dateRange.start, end: Date.now() }));
+    }, 10000);
 
     return () => {
       unsubscribe();
+      clearInterval(refreshInterval);
     };
-  }, [dispatch]);
+  }, [dispatch, dateRange.start]);
 
   useEffect(() => {
     dispatch(fetchDashboardData({ start: dateRange.start, end: dateRange.end }));
