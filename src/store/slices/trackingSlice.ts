@@ -125,7 +125,10 @@ const trackingSlice = createSlice({
         }
       })
       .addCase(fetchDashboardData.pending, (state) => {
-        state.isLoading = true;
+        // Only show loading on initial load, not background refreshes
+        if (state.appUsage.length === 0 && state.categoryBreakdown.length === 0) {
+          state.isLoading = true;
+        }
         state.error = null;
       })
       .addCase(fetchDashboardData.fulfilled, (state, action) => {
