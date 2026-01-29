@@ -127,8 +127,11 @@ class ContextExtractor {
   }
 
   extractVSCodeContext(title: string): VSCodeContext | null {
+    // Separator can be " - " (hyphen) or " — " (em dash, used on macOS)
+    const sep = `\\s[-\u2014]\\s`;
+
     // Format: "filename.ext - projectname - Visual Studio Code"
-    const match = title.match(/^(.+?)\s-\s(.+?)\s-\sVisual Studio Code$/);
+    const match = title.match(new RegExp(`^(.+?)${sep}(.+?)${sep}(?:Visual Studio Code|Code)$`));
 
     if (match) {
       const [, filename, project] = match;
@@ -143,11 +146,38 @@ class ContextExtractor {
     }
 
     // Alternative format: "projectname - Visual Studio Code"
-    const projectOnlyMatch = title.match(/^(.+?)\s-\sVisual Studio Code$/);
+    const projectOnlyMatch = title.match(new RegExp(`^(.+?)${sep}(?:Visual Studio Code|Code)$`));
     if (projectOnlyMatch) {
       return {
         filename: "",
         project: projectOnlyMatch[1],
+        fileType: "",
+        language: "",
+      };
+    }
+
+    // macOS: get-windows returns title without app name suffix
+    // VS Code title format: "filename — project — status" or "filename — project"
+    // The project is always the second segment (index 1)
+    const parts = title.split(/\s[-\u2014]\s/);
+    if (parts.length >= 2) {
+      const project = parts[1];
+      const filename = parts[0];
+      const extension = filename.split(".").pop() || "";
+
+      return {
+        filename,
+        project,
+        fileType: extension,
+        language: this.getLanguageFromExtension(extension),
+      };
+    }
+
+    // Single segment: just the project name (e.g. "composable")
+    if (title) {
+      return {
+        filename: "",
+        project: title,
         fileType: "",
         language: "",
       };

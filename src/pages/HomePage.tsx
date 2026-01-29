@@ -5,6 +5,7 @@ import {
   fetchTrackerStatus,
   fetchDashboardData,
   fetchActivities,
+  fetchSessions,
   setCurrentActivity,
   setDateRangeToday,
   setDateRangeWeek,
@@ -56,6 +57,7 @@ export function HomePage() {
     totalTime,
     dateRange,
     activities,
+    sessions,
   } = useAppSelector((state) => state.tracking);
 
   const [hourlyPattern, setHourlyPattern] = useState<HourlyPattern[]>([]);
@@ -132,6 +134,7 @@ export function HomePage() {
   useEffect(() => {
     dispatch(fetchDashboardData({ start: dateRange.start, end: dateRange.end }));
     dispatch(fetchActivities({ start: dateRange.start, end: dateRange.end }));
+    dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
     window.electronAPI.getHourlyPattern(dateRange.start, dateRange.end).then(setHourlyPattern);
     window.electronAPI.getDomainUsage(dateRange.start, dateRange.end).then(setDomainUsage);
 
@@ -140,6 +143,7 @@ export function HomePage() {
       dispatch(fetchTrackerStatus());
       dispatch(fetchDashboardData({ start: dateRange.start, end: Date.now() }));
       dispatch(fetchActivities({ start: dateRange.start, end: Date.now() }));
+      dispatch(fetchSessions({ start: dateRange.start, end: Date.now() }));
       window.electronAPI.getHourlyPattern(dateRange.start, Date.now()).then(setHourlyPattern);
       window.electronAPI.getDomainUsage(dateRange.start, Date.now()).then(setDomainUsage);
     });
@@ -246,14 +250,14 @@ export function HomePage() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Activity Feed */}
+            {/* Activity Feed (grouped by session) */}
             <Card>
               <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Activity</p>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {activities.slice(0, 15).map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-3 text-sm">
+                {sessions.slice(0, 10).map((session) => (
+                  <div key={session.id} className="flex items-center gap-3 text-sm">
                     <span className="text-grey-500 text-xs font-mono w-14">
-                      {new Date(activity.start_time).toLocaleTimeString("en-US", {
+                      {new Date(session.start_time).toLocaleTimeString("en-US", {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: false,
@@ -261,13 +265,16 @@ export function HomePage() {
                     </span>
                     <span
                       className="w-1 h-4 rounded-full"
-                      style={{ backgroundColor: CATEGORY_COLORS[activity.category] || CATEGORY_COLORS.uncategorized }}
+                      style={{ backgroundColor: CATEGORY_COLORS[session.category || "uncategorized"] || CATEGORY_COLORS.uncategorized }}
                     />
-                    <span className="text-white truncate flex-1">{activity.app_name}</span>
-                    <span className="text-grey-500 text-xs">{formatDuration(activity.duration)}</span>
+                    <span className="text-white truncate flex-1">{session.app_name}</span>
+                    {session.activity_count > 1 && (
+                      <span className="text-grey-600 text-[10px]">{session.activity_count}</span>
+                    )}
+                    <span className="text-grey-500 text-xs">{formatDuration(session.total_duration)}</span>
                   </div>
                 ))}
-                {activities.length === 0 && (
+                {sessions.length === 0 && (
                   <p className="text-grey-500 text-sm">No activity yet</p>
                 )}
               </div>
@@ -371,6 +378,23 @@ export function HomePage() {
               })}
               {categoryBreakdown.length === 0 && (
                 <p className="text-grey-500 text-sm">No data yet</p>
+              )}
+            </div>
+          </Card>
+
+          {/* Websites */}
+          <Card>
+            <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Websites</p>
+            <div className="space-y-2">
+              {domainUsage.slice(0, 6).map((site, index) => (
+                <div key={site.domain} className="flex items-center gap-2">
+                  <span className="text-xs text-grey-600 w-4 flex-shrink-0">{index + 1}</span>
+                  <span className="text-sm text-white flex-1 truncate min-w-0">{site.domain}</span>
+                  <span className="text-xs text-grey-500 flex-shrink-0">{formatDuration(site.total_duration)}</span>
+                </div>
+              ))}
+              {domainUsage.length === 0 && (
+                <p className="text-grey-500 text-sm">No websites tracked yet</p>
               )}
             </div>
           </Card>
