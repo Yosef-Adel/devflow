@@ -13,6 +13,7 @@ const nativeModules = [
   'bindings',
   'file-uri-to-path',
   'node-addon-api',
+  '@mapbox',
 ];
 
 const config: ForgeConfig = {
