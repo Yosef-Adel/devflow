@@ -3,25 +3,34 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
+// External native modules that Vite doesn't bundle
+const externalModules = ['get-windows', 'better-sqlite3'];
+
 const config: ForgeConfig = {
   hooks: {
-    packageAfterCopy: async (_config, buildPath) => {
-      const path = await import('path');
-      const fs = await import('fs/promises');
-      const nodeModulesSrc = path.join(process.cwd(), 'node_modules');
-      const nodeModulesDest = path.join(buildPath, 'node_modules');
+    // Workaround for Electron Forge Vite plugin bug #3738
+    // External modules aren't copied to the package, so we reinstall them
+    packageAfterPrune: async (_config, buildPath) => {
+      const { execSync } = await import('child_process');
+      const modulesToInstall = externalModules.join(' ');
 
-      // Copy entire node_modules for native module dependencies
-      await fs.cp(nodeModulesSrc, nodeModulesDest, { recursive: true });
+      console.log(`Installing external modules: ${modulesToInstall}`);
+      execSync(`npm install --omit=dev ${modulesToInstall}`, {
+        cwd: buildPath,
+        stdio: 'inherit',
+      });
     },
   },
   packagerConfig: {
     appBundleId: 'com.activity-tracker.app',
-    asar: false,
+    asar: {
+      unpack: '**/*.node',
+    },
     extendInfo: {
       NSScreenCaptureUsageDescription:
         'Activity Tracker needs Screen Recording permission to track which applications and windows you are using.',
@@ -29,7 +38,9 @@ const config: ForgeConfig = {
         'Activity Tracker needs Accessibility permission to detect active windows and track your activity.',
     },
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    force: true,
+  },
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ['darwin']),
@@ -37,6 +48,7 @@ const config: ForgeConfig = {
     new MakerDeb({}),
   ],
   plugins: [
+    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       build: [
         {
