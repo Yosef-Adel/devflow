@@ -16,6 +16,7 @@ export interface CurrentActivity {
 
 export interface TrackerStatus {
   isRunning: boolean;
+  isPaused: boolean;
   isSupported: boolean;
   platformMessage: string;
   currentActivity: CurrentActivity | null;
@@ -33,6 +34,7 @@ class TimeTracker {
   private activityStartTime: number | null = null;
   private trackingInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private isPaused = false;
   private isIdle = false;
   private checkIntervalMs = 5000; // Check every 5 seconds
   private idleThresholdSeconds = 120; // 2 minutes of inactivity = idle
@@ -82,6 +84,8 @@ class TimeTracker {
   }
 
   private async track(): Promise<void> {
+    if (this.isPaused) return;
+
     // Check idle state
     const idleSeconds = powerMonitor.getSystemIdleTime();
     const wasIdle = this.isIdle;
@@ -115,6 +119,20 @@ class TimeTracker {
     if (!window) return;
 
     const appName = window.owner.name;
+
+    // Skip tracking the app itself — save current activity and notify frontend
+    if (appName === "Electron" || appName === "Activity Tracker" || appName === "activity-tracker") {
+      if (this.currentActivity) {
+        this.saveCurrentActivity();
+        this.currentActivity = null;
+        this.activityStartTime = null;
+        if (this.onActivityChange) {
+          this.onActivityChange(null);
+        }
+      }
+      return;
+    }
+
     const title = window.title;
     const url = window.url || null;
 
@@ -196,11 +214,34 @@ class TimeTracker {
     });
   }
 
+  pause(): void {
+    if (!this.isPaused) {
+      this.isPaused = true;
+      this.saveCurrentActivity();
+      this.db.closeCurrentSession();
+      this.currentActivity = null;
+      this.activityStartTime = null;
+
+      if (this.onActivityChange) {
+        this.onActivityChange(null);
+      }
+      console.log("Tracking paused.");
+    }
+  }
+
+  resume(): void {
+    if (this.isPaused) {
+      this.isPaused = false;
+      console.log("Tracking resumed.");
+    }
+  }
+
   getStatus(): TrackerStatus {
     const platformInfo = this.platformTracker.getPlatformInfo();
 
     return {
       isRunning: this.isRunning,
+      isPaused: this.isPaused,
       isSupported: platformInfo.isSupported,
       platformMessage: platformInfo.message,
       currentActivity: this.currentActivity,

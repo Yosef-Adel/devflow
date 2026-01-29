@@ -41,9 +41,15 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     appBundleId: 'com.activity-tracker.app',
+    icon: './src/assets/icon',
     asar: {
       unpack: '**/*.node',
     },
+    extraResource: [
+      './src/assets/trayIconTemplate.png',
+      './src/assets/trayIconTemplate@2x.png',
+      './src/assets/icon.png',
+    ],
     extendInfo: {
       NSScreenCaptureUsageDescription:
         'Activity Tracker needs Screen Recording permission to track which applications and windows you are using.',

@@ -8,6 +8,7 @@ export interface CurrentActivity {
 
 export interface TrackerStatus {
   isRunning: boolean;
+  isPaused: boolean;
   isSupported: boolean;
   platformMessage: string;
   currentActivity: CurrentActivity | null;
@@ -99,6 +100,10 @@ export interface ElectronAPI {
   getTotalTime: (startTime: number, endTime: number) => Promise<number>;
   getActivities: (startTime: number, endTime: number) => Promise<ActivityRecord[]>;
   getSessions: (startTime: number, endTime: number) => Promise<SessionWithActivities[]>;
+
+  // Pause/Resume
+  pauseTracking: () => Promise<void>;
+  resumeTracking: () => Promise<void>;
 
   // Categories
   getCategoryColor: (category: string) => Promise<string>;
