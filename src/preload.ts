@@ -10,6 +10,7 @@ export interface CurrentActivity {
 
 export interface TrackerStatus {
   isRunning: boolean;
+  isPaused: boolean;
   isSupported: boolean;
   platformMessage: string;
   currentActivity: CurrentActivity | null;
@@ -119,6 +120,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   getSessions: (startTime: number, endTime: number): Promise<SessionWithActivities[]> =>
     ipcRenderer.invoke("tracker:getSessions", startTime, endTime),
+
+  // Pause/Resume
+  pauseTracking: (): Promise<void> =>
+    ipcRenderer.invoke("tracker:pause"),
+
+  resumeTracking: (): Promise<void> =>
+    ipcRenderer.invoke("tracker:resume"),
 
   // Categories
   getCategoryColor: (category: string): Promise<string> =>

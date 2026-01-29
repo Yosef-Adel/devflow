@@ -327,8 +327,31 @@ export function HomePage() {
               </div>
             </div>
             <div className="flex items-center justify-between text-xs text-grey-500">
-              <span>Tracking: {status?.isRunning ? "On" : "Off"}</span>
-              {status?.isIdle && <span className="text-warning">Idle</span>}
+              <span>
+                Tracking: {status?.isPaused ? "Paused" : status?.isRunning ? "On" : "Off"}
+              </span>
+              <div className="flex items-center gap-2">
+                {status?.isIdle && <span className="text-warning">Idle</span>}
+                {status?.isRunning && (
+                  <button
+                    onClick={async () => {
+                      if (status?.isPaused) {
+                        await window.electronAPI.resumeTracking();
+                      } else {
+                        await window.electronAPI.pauseTracking();
+                      }
+                      dispatch(fetchTrackerStatus());
+                    }}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      status?.isPaused
+                        ? "bg-primary/20 text-primary hover:bg-primary/30"
+                        : "bg-white/5 text-grey-400 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {status?.isPaused ? "Resume" : "Pause"}
+                  </button>
+                )}
+              </div>
             </div>
           </Card>
 

@@ -99,6 +99,15 @@ ipcMain.handle("tracker:getSessions", (_event, startTime: number, endTime: numbe
   return tracker?.getDatabase().getSessionsWithActivities(startTime, endTime) || [];
 });
 
+// Pause/resume tracking
+ipcMain.handle("tracker:pause", () => {
+  tracker?.pause();
+});
+
+ipcMain.handle("tracker:resume", () => {
+  tracker?.resume();
+});
+
 // For consistent category colors across all charts
 ipcMain.handle("tracker:getCategoryColor", (_event, category: string) => {
   return tracker?.getCategorizer().getCategoryColor(category as never) || "#64748B";
