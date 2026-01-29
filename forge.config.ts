@@ -12,7 +12,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     appBundleId: 'com.activity-tracker.app',
     asar: {
-      unpack: '**/{better-sqlite3,get-windows}/**/*',
+      unpack: '**/{better-sqlite3,get-windows,@mapbox/node-pre-gyp}/**/*',
     },
     extendInfo: {
       NSScreenCaptureUsageDescription:
@@ -28,7 +28,7 @@ const config: ForgeConfig = {
       const nodeModulesSrc = path.join(process.cwd(), 'node_modules');
       const nodeModulesDest = path.join(buildPath, 'node_modules');
 
-      const modulesToCopy = ['get-windows', 'better-sqlite3'];
+      const modulesToCopy = ['get-windows', 'better-sqlite3', '@mapbox'];
 
       await fs.mkdir(nodeModulesDest, { recursive: true });
 
