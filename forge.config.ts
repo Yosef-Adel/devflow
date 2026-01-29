@@ -44,6 +44,10 @@ const config: ForgeConfig = {
     asar: {
       unpack: '**/*.node',
     },
+    extraResource: [
+      './src/assets/trayIconTemplate.png',
+      './src/assets/trayIconTemplate@2x.png',
+    ],
     extendInfo: {
       NSScreenCaptureUsageDescription:
         'Activity Tracker needs Screen Recording permission to track which applications and windows you are using.',

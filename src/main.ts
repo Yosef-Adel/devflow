@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import { TimeTracker } from "./main/tracker";
@@ -10,6 +10,79 @@ if (started) {
 
 let mainWindow: BrowserWindow | null = null;
 let tracker: TimeTracker | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
+
+function createTray() {
+  // In dev: icon is in src/assets relative to project root
+  // In production: icon is in resources (via extraResource in forge config)
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "trayIconTemplate.png")
+    : path.join(app.getAppPath(), "src/assets/trayIconTemplate.png");
+  const icon = nativeImage.createFromPath(iconPath);
+  icon.setTemplateImage(true);
+
+  tray = new Tray(icon);
+  tray.setToolTip("Activity Tracker");
+
+  // Click tray icon to show/hide window
+  tray.on("click", () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+
+  updateTrayMenu();
+}
+
+function updateTrayMenu(activityLabel?: string) {
+  if (!tray) return;
+
+  const isPaused = tracker?.getStatus()?.isPaused ?? false;
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: activityLabel || "No activity",
+      enabled: false,
+    },
+    { type: "separator" },
+    {
+      label: isPaused ? "Resume Tracking" : "Pause Tracking",
+      click: () => {
+        if (isPaused) {
+          tracker?.resume();
+        } else {
+          tracker?.pause();
+        }
+        updateTrayMenu(activityLabel);
+      },
+    },
+    {
+      label: "Show Window",
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+}
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -31,8 +104,19 @@ const createWindow = () => {
     );
   }
 
+  // Hide window instead of closing (app stays in tray)
+  mainWindow.on("close", (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
   // Initialize time tracker
   initializeTracker();
+
+  // Create system tray
+  createTray();
 };
 
 async function initializeTracker() {
@@ -41,6 +125,16 @@ async function initializeTracker() {
   tracker.setOnActivityChange((activity) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("activity-changed", activity);
+    }
+
+    // Update tray with current activity info
+    if (activity) {
+      const label = `${activity.appName} — ${activity.category}`;
+      tray?.setToolTip(`Activity Tracker — ${activity.appName}`);
+      updateTrayMenu(label);
+    } else {
+      tray?.setToolTip("Activity Tracker — Idle");
+      updateTrayMenu("Idle");
     }
   });
 
@@ -102,10 +196,12 @@ ipcMain.handle("tracker:getSessions", (_event, startTime: number, endTime: numbe
 // Pause/resume tracking
 ipcMain.handle("tracker:pause", () => {
   tracker?.pause();
+  updateTrayMenu();
 });
 
 ipcMain.handle("tracker:resume", () => {
   tracker?.resume();
+  updateTrayMenu();
 });
 
 // For consistent category colors across all charts
@@ -123,26 +219,29 @@ ipcMain.handle("tracker:getAllCategories", () => {
 // Create the main window when Electron is ready
 app.on("ready", createWindow);
 
-// Cleanup tracker and quit when all windows are closed (except macOS which keeps apps in dock)
+// Don't quit when window is closed — app stays in tray
 app.on("window-all-closed", () => {
-  if (tracker) {
-    tracker.shutdown();
-  }
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  // Do nothing — tray keeps the app alive
 });
 
-// macOS: re-create window when clicking dock icon with no windows open
+// macOS: show window when clicking dock icon
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
     createWindow();
   }
 });
 
 // Final cleanup before app exits to flush pending database writes
 app.on("before-quit", () => {
+  isQuitting = true;
   if (tracker) {
     tracker.shutdown();
+  }
+  if (tray) {
+    tray.destroy();
+    tray = null;
   }
 });

@@ -120,8 +120,16 @@ class TimeTracker {
 
     const appName = window.owner.name;
 
-    // Skip tracking the app itself
+    // Skip tracking the app itself — save current activity and notify frontend
     if (appName === "Electron" || appName === "Activity Tracker" || appName === "activity-tracker") {
+      if (this.currentActivity) {
+        this.saveCurrentActivity();
+        this.currentActivity = null;
+        this.activityStartTime = null;
+        if (this.onActivityChange) {
+          this.onActivityChange(null);
+        }
+      }
       return;
     }
 
