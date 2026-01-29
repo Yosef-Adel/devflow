@@ -7,15 +7,6 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-const nativeModules = [
-  'get-windows',
-  'better-sqlite3',
-  'bindings',
-  'file-uri-to-path',
-  'node-addon-api',
-  '@mapbox',
-];
-
 const config: ForgeConfig = {
   hooks: {
     packageAfterCopy: async (_config, buildPath) => {
@@ -24,17 +15,8 @@ const config: ForgeConfig = {
       const nodeModulesSrc = path.join(process.cwd(), 'node_modules');
       const nodeModulesDest = path.join(buildPath, 'node_modules');
 
-      await fs.mkdir(nodeModulesDest, { recursive: true });
-
-      for (const mod of nativeModules) {
-        const src = path.join(nodeModulesSrc, mod);
-        const dest = path.join(nodeModulesDest, mod);
-        try {
-          await fs.cp(src, dest, { recursive: true });
-        } catch (e) {
-          console.warn(`Could not copy ${mod}:`, e);
-        }
-      }
+      // Copy entire node_modules for native module dependencies
+      await fs.cp(nodeModulesSrc, nodeModulesDest, { recursive: true });
     },
   },
   packagerConfig: {
