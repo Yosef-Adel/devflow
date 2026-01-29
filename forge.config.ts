@@ -15,14 +15,27 @@ const config: ForgeConfig = {
   hooks: {
     // Workaround for Electron Forge Vite plugin bug #3738
     // External modules aren't copied to the package, so we reinstall them
-    packageAfterPrune: async (_config, buildPath) => {
+    packageAfterPrune: async (_config, buildPath, _electronVersion, platform, arch) => {
       const { execSync } = await import('child_process');
+      const path = await import('path');
+      const electronModulePath = path.join(process.cwd(), 'node_modules', 'electron');
       const modulesToInstall = externalModules.join(' ');
 
       console.log(`Installing external modules: ${modulesToInstall}`);
       execSync(`npm install --omit=dev ${modulesToInstall}`, {
         cwd: buildPath,
         stdio: 'inherit',
+      });
+
+      // Rebuild native modules for Electron
+      console.log('Rebuilding native modules for Electron...');
+      execSync(`npx electron-rebuild -f -m "${buildPath}" --arch=${arch}`, {
+        cwd: process.cwd(),
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          ELECTRON_PATH: electronModulePath,
+        },
       });
     },
   },
