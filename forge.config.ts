@@ -11,7 +11,9 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     appBundleId: 'com.activity-tracker.app',
-    asar: true,
+    asar: {
+      unpack: '**/node_modules/{better-sqlite3,get-windows,bindings,file-uri-to-path,node-addon-api}/**/*',
+    },
     extendInfo: {
       NSScreenCaptureUsageDescription:
         'Activity Tracker needs Screen Recording permission to track which applications and windows you are using.',
@@ -55,7 +57,7 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };
