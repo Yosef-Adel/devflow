@@ -4,7 +4,9 @@ export interface CurrentActivity {
   appName: string;
   title: string;
   url: string | null;
-  category: string;
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
   context: Record<string, unknown>;
 }
 
@@ -25,7 +27,9 @@ export interface AppUsage {
 }
 
 export interface CategoryBreakdown {
-  category: string;
+  category_id: number;
+  category_name: string;
+  category_color: string;
   total_duration: number;
   session_count: number;
 }
@@ -44,7 +48,8 @@ export interface DomainUsage {
 
 export interface HourlyPattern {
   hour: string;
-  category: string;
+  category_name: string;
+  category_color: string;
   total_duration: number;
 }
 
@@ -60,7 +65,9 @@ export interface ActivityRecord {
   app_name: string;
   window_title: string;
   url: string | null;
-  category: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
   project_name: string | null;
   file_name: string | null;
   file_type: string | null;
@@ -76,7 +83,9 @@ export interface ActivityRecord {
 export interface SessionRecord {
   id: number;
   app_name: string;
-  category: string | null;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
   start_time: number;
   end_time: number;
   total_duration: number;
@@ -86,6 +95,19 @@ export interface SessionRecord {
 
 export interface SessionWithActivities extends SessionRecord {
   activities: ActivityRecord[];
+}
+
+export interface CategoryInfo {
+  id: number;
+  name: string;
+  color: string;
+  isDefault: boolean;
+}
+
+export interface CategoryRule {
+  id: number;
+  type: string;
+  pattern: string;
 }
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -129,11 +151,37 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("tracker:resume"),
 
   // Categories
-  getCategoryColor: (category: string): Promise<string> =>
-    ipcRenderer.invoke("tracker:getCategoryColor", category),
+  getCategoryColor: (categoryId: number): Promise<string> =>
+    ipcRenderer.invoke("tracker:getCategoryColor", categoryId),
 
-  getAllCategories: (): Promise<string[]> =>
+  getAllCategories: (): Promise<CategoryInfo[]> =>
     ipcRenderer.invoke("tracker:getAllCategories"),
+
+  // Category CRUD
+  getCategories: (): Promise<CategoryInfo[]> =>
+    ipcRenderer.invoke("tracker:getCategories"),
+
+  createCategory: (name: string, color: string): Promise<{ id: number }> =>
+    ipcRenderer.invoke("tracker:createCategory", name, color),
+
+  updateCategory: (id: number, name?: string, color?: string): Promise<void> =>
+    ipcRenderer.invoke("tracker:updateCategory", id, name, color),
+
+  deleteCategory: (id: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:deleteCategory", id),
+
+  // Category rules CRUD
+  getCategoryRules: (categoryId: number): Promise<CategoryRule[]> =>
+    ipcRenderer.invoke("tracker:getCategoryRules", categoryId),
+
+  addCategoryRule: (categoryId: number, type: string, pattern: string): Promise<{ id: number }> =>
+    ipcRenderer.invoke("tracker:addCategoryRule", categoryId, type, pattern),
+
+  removeCategoryRule: (ruleId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:removeCategoryRule", ruleId),
+
+  reloadCategories: (): Promise<void> =>
+    ipcRenderer.invoke("tracker:reloadCategories"),
 
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => {

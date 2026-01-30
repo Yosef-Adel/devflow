@@ -5,18 +5,6 @@ import { fetchSessions, setDateRangeToday, setDateRangeWeek, setCurrentActivity 
 import { formatDuration, formatTime } from "../utils/time";
 import type { SessionWithActivities } from "../types/electron";
 
-const CATEGORY_COLORS: Record<string, string> = {
-  development: "#8b5cf6",
-  communication: "#22c55e",
-  social: "#eab308",
-  entertainment: "#ef4444",
-  productivity: "#a855f7",
-  research: "#0ea5e9",
-  email: "#ec4899",
-  design: "#f97316",
-  uncategorized: "#71717a",
-};
-
 export function ActivitiesPage() {
   const dispatch = useAppDispatch();
   const { sessions, dateRange } = useAppSelector((state) => state.tracking);
@@ -133,7 +121,8 @@ export function ActivitiesPage() {
                 {daySessions.map((session) => {
                   const isExpanded = expandedSessions.has(session.id);
                   const hasMultipleActivities = session.activities.length > 1;
-                  const category = session.category || "uncategorized";
+                  const categoryName = session.category_name || "uncategorized";
+                  const categoryColor = session.category_color || "#71717a";
 
                   return (
                     <Card key={session.id} noPadding>
@@ -143,7 +132,7 @@ export function ActivitiesPage() {
                       >
                         <div
                           className="w-1 self-stretch rounded-full"
-                          style={{ backgroundColor: CATEGORY_COLORS[category] }}
+                          style={{ backgroundColor: categoryColor }}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -151,11 +140,11 @@ export function ActivitiesPage() {
                             <span
                               className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded"
                               style={{
-                                backgroundColor: CATEGORY_COLORS[category] + "20",
-                                color: CATEGORY_COLORS[category],
+                                backgroundColor: categoryColor + "20",
+                                color: categoryColor,
                               }}
                             >
-                              {category}
+                              {categoryName}
                             </span>
                             {hasMultipleActivities && (
                               <span className="px-2 py-0.5 text-[10px] rounded bg-white/5 text-grey-400">

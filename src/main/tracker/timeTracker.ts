@@ -4,13 +4,15 @@ import ActivityCategorizer from "./categorizer";
 import ContextExtractor from "./contextExtractor";
 import ActivityDatabase from "./database";
 import type { ExtractedContext } from "./contextExtractor";
-import type { Category } from "./categorizer";
+
 
 export interface CurrentActivity {
   appName: string;
   title: string;
   url: string | null;
-  category: Category;
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
   context: ExtractedContext;
 }
 
@@ -137,13 +139,17 @@ class TimeTracker {
     const url = window.url || null;
 
     const context = this.contextExtractor.extract(appName, title, url);
-    const category = this.categorizer.categorize({ appName, title, url });
+    const categoryId = this.categorizer.categorize({ appName, title, url });
+    const categoryName = this.categorizer.getCategoryName(categoryId);
+    const categoryColor = this.categorizer.getCategoryColor(categoryId);
 
     const activity: CurrentActivity = {
       appName,
       title,
       url,
-      category,
+      categoryId,
+      categoryName,
+      categoryColor,
       context,
     };
 
@@ -201,7 +207,7 @@ class TimeTracker {
       app_name: this.currentActivity.appName,
       window_title: this.currentActivity.title,
       url: this.currentActivity.url,
-      category: this.currentActivity.category,
+      category_id: this.currentActivity.categoryId,
       project_name: ctx.project || null,
       file_name: ctx.filename || null,
       file_type: ctx.fileType || null,
@@ -234,6 +240,10 @@ class TimeTracker {
       this.isPaused = false;
       console.log("Tracking resumed.");
     }
+  }
+
+  reloadCategories(): void {
+    this.categorizer.reloadRules();
   }
 
   getStatus(): TrackerStatus {

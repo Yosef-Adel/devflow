@@ -2,7 +2,9 @@ export interface CurrentActivity {
   appName: string;
   title: string;
   url: string | null;
-  category: string;
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
   context: Record<string, unknown>;
 }
 
@@ -23,7 +25,9 @@ export interface AppUsage {
 }
 
 export interface CategoryBreakdown {
-  category: string;
+  category_id: number;
+  category_name: string;
+  category_color: string;
   total_duration: number;
   session_count: number;
 }
@@ -42,7 +46,8 @@ export interface DomainUsage {
 
 export interface HourlyPattern {
   hour: string;
-  category: string;
+  category_name: string;
+  category_color: string;
   total_duration: number;
 }
 
@@ -58,7 +63,9 @@ export interface ActivityRecord {
   app_name: string;
   window_title: string;
   url: string | null;
-  category: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
   project_name: string | null;
   file_name: string | null;
   file_type: string | null;
@@ -74,7 +81,9 @@ export interface ActivityRecord {
 export interface SessionRecord {
   id: number;
   app_name: string;
-  category: string | null;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
   start_time: number;
   end_time: number;
   total_duration: number;
@@ -84,6 +93,19 @@ export interface SessionRecord {
 
 export interface SessionWithActivities extends SessionRecord {
   activities: ActivityRecord[];
+}
+
+export interface CategoryInfo {
+  id: number;
+  name: string;
+  color: string;
+  isDefault: boolean;
+}
+
+export interface CategoryRule {
+  id: number;
+  type: string;
+  pattern: string;
 }
 
 export interface ElectronAPI {
@@ -106,8 +128,20 @@ export interface ElectronAPI {
   resumeTracking: () => Promise<void>;
 
   // Categories
-  getCategoryColor: (category: string) => Promise<string>;
-  getAllCategories: () => Promise<string[]>;
+  getCategoryColor: (categoryId: number) => Promise<string>;
+  getAllCategories: () => Promise<CategoryInfo[]>;
+
+  // Category CRUD
+  getCategories: () => Promise<CategoryInfo[]>;
+  createCategory: (name: string, color: string) => Promise<{ id: number }>;
+  updateCategory: (id: number, name?: string, color?: string) => Promise<void>;
+  deleteCategory: (id: number) => Promise<void>;
+
+  // Category rules CRUD
+  getCategoryRules: (categoryId: number) => Promise<CategoryRule[]>;
+  addCategoryRule: (categoryId: number, type: string, pattern: string) => Promise<{ id: number }>;
+  removeCategoryRule: (ruleId: number) => Promise<void>;
+  reloadCategories: () => Promise<void>;
 
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => () => void;

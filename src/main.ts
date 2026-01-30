@@ -134,7 +134,7 @@ async function initializeTracker() {
 
     // Update tray with current activity info
     if (activity) {
-      const label = `${activity.appName} — ${activity.category}`;
+      const label = `${activity.appName} — ${activity.categoryName}`;
       tray?.setToolTip(`Activity Tracker — ${activity.appName}`);
       updateTrayMenu(label);
     } else {
@@ -209,14 +209,49 @@ ipcMain.handle("tracker:resume", () => {
   updateTrayMenu();
 });
 
-// For consistent category colors across all charts
-ipcMain.handle("tracker:getCategoryColor", (_event, category: string) => {
-  return tracker?.getCategorizer().getCategoryColor(category as never) || "#64748B";
+// Category queries
+ipcMain.handle("tracker:getCategoryColor", (_event, categoryId: number) => {
+  return tracker?.getCategorizer().getCategoryColor(categoryId) || "#64748B";
 });
 
-// For populating category filter dropdowns
 ipcMain.handle("tracker:getAllCategories", () => {
   return tracker?.getCategorizer().getAllCategories() || [];
+});
+
+// Category CRUD
+ipcMain.handle("tracker:getCategories", () => {
+  return tracker?.getCategorizer().getAllCategories() || [];
+});
+
+ipcMain.handle("tracker:createCategory", (_event, name: string, color: string) => {
+  const id = tracker?.getCategorizer().createCategory(name, color);
+  return { id };
+});
+
+ipcMain.handle("tracker:updateCategory", (_event, id: number, name?: string, color?: string) => {
+  tracker?.getCategorizer().updateCategory(id, { name, color });
+});
+
+ipcMain.handle("tracker:deleteCategory", (_event, id: number) => {
+  tracker?.getCategorizer().deleteCategory(id);
+});
+
+// Category rules CRUD
+ipcMain.handle("tracker:getCategoryRules", (_event, categoryId: number) => {
+  return tracker?.getCategorizer().getCategoryRules(categoryId) || [];
+});
+
+ipcMain.handle("tracker:addCategoryRule", (_event, categoryId: number, type: string, pattern: string) => {
+  const id = tracker?.getCategorizer().addRule(categoryId, type, pattern);
+  return { id };
+});
+
+ipcMain.handle("tracker:removeCategoryRule", (_event, ruleId: number) => {
+  tracker?.getCategorizer().removeRule(ruleId);
+});
+
+ipcMain.handle("tracker:reloadCategories", () => {
+  tracker?.reloadCategories();
 });
 
 // App lifecycle events
