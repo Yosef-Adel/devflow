@@ -9,19 +9,7 @@ import {
   setCurrentActivity,
 } from "../store/slices";
 import { formatDuration, getPercentage } from "../utils/time";
-import type { DailyTotal, HourlyPattern } from "../types/electron";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  development: "#8b5cf6",
-  communication: "#22c55e",
-  social: "#eab308",
-  entertainment: "#ef4444",
-  productivity: "#a855f7",
-  research: "#0ea5e9",
-  email: "#ec4899",
-  design: "#f97316",
-  uncategorized: "#71717a",
-};
+import type { DailyTotal, HourlyPattern, CategoryBreakdown } from "../types/electron";
 
 const PRODUCTIVE_CATEGORIES = ["development", "productivity", "research", "design"];
 const NEUTRAL_CATEGORIES = ["communication", "email"];
@@ -38,24 +26,24 @@ interface Insights {
 }
 
 function calculateInsights(
-  categoryBreakdown: { category: string; total_duration: number }[],
+  categoryBreakdown: CategoryBreakdown[],
   dailyTotals: DailyTotal[],
   hourlyPattern: HourlyPattern[],
   totalTime: number
 ): Insights {
   const productiveTime = categoryBreakdown
-    .filter((c) => PRODUCTIVE_CATEGORIES.includes(c.category))
+    .filter((c) => PRODUCTIVE_CATEGORIES.includes(c.category_name))
     .reduce((sum, c) => sum + c.total_duration, 0);
 
   const distractedTime = categoryBreakdown
-    .filter((c) => !PRODUCTIVE_CATEGORIES.includes(c.category) && !NEUTRAL_CATEGORIES.includes(c.category))
+    .filter((c) => !PRODUCTIVE_CATEGORIES.includes(c.category_name) && !NEUTRAL_CATEGORIES.includes(c.category_name))
     .reduce((sum, c) => sum + c.total_duration, 0);
 
   const focusScore = totalTime > 0 ? Math.round((productiveTime / totalTime) * 100) : 0;
 
   const hourlyProductivity = new Map<number, number>();
   hourlyPattern.forEach((h) => {
-    if (PRODUCTIVE_CATEGORIES.includes(h.category)) {
+    if (PRODUCTIVE_CATEGORIES.includes(h.category_name)) {
       const hourNum = parseInt(h.hour);
       // Only consider work hours (6 AM - 11 PM)
       if (hourNum >= 6 && hourNum <= 23) {
@@ -151,18 +139,19 @@ export function ReportsPage() {
 
   const heatmapData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, "0"));
-    const categories = Object.keys(CATEGORY_COLORS);
-    const matrix: number[][] = categories.map(() => new Array(24).fill(0));
+    // Build category list from actual data
+    const categoryNames = [...new Set(hourlyPattern.map((h) => h.category_name))];
+    const matrix: number[][] = categoryNames.map(() => new Array(24).fill(0));
 
     hourlyPattern.forEach((h) => {
       const hourIdx = parseInt(h.hour);
-      const catIdx = categories.indexOf(h.category);
+      const catIdx = categoryNames.indexOf(h.category_name);
       if (catIdx !== -1 && hourIdx >= 0 && hourIdx < 24) {
         matrix[catIdx][hourIdx] = h.total_duration / (1000 * 60);
       }
     });
 
-    return { hours, categories, matrix };
+    return { hours, categories: categoryNames, matrix };
   }, [hourlyPattern]);
 
   const dailyChartData = useMemo(() => {
@@ -283,11 +272,9 @@ export function ReportsPage() {
                   {
                     type: "pie",
                     values: categoryBreakdown.map((c) => c.total_duration),
-                    labels: categoryBreakdown.map((c) => c.category),
+                    labels: categoryBreakdown.map((c) => c.category_name),
                     marker: {
-                      colors: categoryBreakdown.map(
-                        (c) => CATEGORY_COLORS[c.category] || CATEGORY_COLORS.uncategorized
-                      ),
+                      colors: categoryBreakdown.map((c) => c.category_color),
                     },
                     textinfo: "percent",
                     textposition: "inside",
@@ -484,23 +471,23 @@ export function ReportsPage() {
                   </thead>
                   <tbody>
                     {categoryBreakdown.map((cat) => (
-                      <tr key={cat.category} className="border-b border-white/[0.04]">
+                      <tr key={cat.category_id} className="border-b border-white/[0.04]">
                         <td className="py-3">
                           <div className="flex items-center gap-2">
                             <span
                               className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: CATEGORY_COLORS[cat.category] }}
+                              style={{ backgroundColor: cat.category_color }}
                             />
-                            <span className="capitalize text-white">{cat.category}</span>
+                            <span className="capitalize text-white">{cat.category_name}</span>
                           </div>
                         </td>
                         <td className="py-3 text-grey-400">{formatDuration(cat.total_duration)}</td>
                         <td className="py-3 text-grey-400">{getPercentage(cat.total_duration, totalTime)}%</td>
                         <td className="py-3 text-grey-400">{cat.session_count}</td>
                         <td className="py-3">
-                          {PRODUCTIVE_CATEGORIES.includes(cat.category) ? (
+                          {PRODUCTIVE_CATEGORIES.includes(cat.category_name) ? (
                             <span className="text-success text-xs">Productive</span>
-                          ) : NEUTRAL_CATEGORIES.includes(cat.category) ? (
+                          ) : NEUTRAL_CATEGORIES.includes(cat.category_name) ? (
                             <span className="text-grey-500 text-xs">Neutral</span>
                           ) : (
                             <span className="text-error text-xs">Distracting</span>

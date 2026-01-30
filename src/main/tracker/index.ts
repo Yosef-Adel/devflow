@@ -5,6 +5,6 @@ export { default as ContextExtractor } from "./contextExtractor";
 export { default as ActivityDatabase } from "./database";
 
 export type { CurrentActivity, TrackerStatus } from "./timeTracker";
-export type { Category, ActivityInput } from "./categorizer";
+export type { CategoryInfo, ActivityInput } from "./categorizer";
 export type { ExtractedContext, BrowserContext, VSCodeContext, TerminalContext } from "./contextExtractor";
 export type { ActivityRecord } from "./database";

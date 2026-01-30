@@ -32,18 +32,6 @@ function useElapsedTime(startTime: number | null) {
   return elapsed;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  development: "#8b5cf6",
-  communication: "#22c55e",
-  social: "#eab308",
-  entertainment: "#ef4444",
-  productivity: "#a855f7",
-  research: "#0ea5e9",
-  email: "#ec4899",
-  design: "#f97316",
-  uncategorized: "#71717a",
-};
-
 const PRODUCTIVE_CATEGORIES = ["development", "productivity", "research", "design"];
 
 export function HomePage() {
@@ -56,7 +44,6 @@ export function HomePage() {
     projectTime,
     totalTime,
     dateRange,
-    activities,
     sessions,
   } = useAppSelector((state) => state.tracking);
 
@@ -69,11 +56,11 @@ export function HomePage() {
   // Calculate scores
   const scores = useMemo(() => {
     const productiveTime = categoryBreakdown
-      .filter((c) => PRODUCTIVE_CATEGORIES.includes(c.category))
+      .filter((c) => PRODUCTIVE_CATEGORIES.includes(c.category_name))
       .reduce((sum, c) => sum + c.total_duration, 0);
 
     const meetingTime = categoryBreakdown
-      .filter((c) => c.category === "communication")
+      .filter((c) => c.category_name === "communication")
       .reduce((sum, c) => sum + c.total_duration, 0);
 
     const focusScore = totalTime > 0 ? Math.round((productiveTime / totalTime) * 100) : 0;
@@ -92,17 +79,17 @@ export function HomePage() {
     const hours = [];
     // Find max minutes for scaling
     let maxMinutes = 0;
-    const hourTotals: { [key: number]: { minutes: number; category: string | null } } = {};
+    const hourTotals: { [key: number]: { minutes: number; color: string | null } } = {};
 
     for (let i = 6; i <= 21; i++) {
       const hourStr = i.toString().padStart(2, "0");
       const hourData = hourlyPattern.filter((h) => h.hour === hourStr);
       const totalMinutes = hourData.reduce((sum, h) => sum + h.total_duration / 60000, 0);
-      const dominantCategory = hourData.length > 0
-        ? hourData.reduce((max, h) => (h.total_duration > max.total_duration ? h : max), hourData[0]).category
+      const dominant = hourData.length > 0
+        ? hourData.reduce((max, h) => (h.total_duration > max.total_duration ? h : max), hourData[0])
         : null;
 
-      hourTotals[i] = { minutes: totalMinutes, category: dominantCategory };
+      hourTotals[i] = { minutes: totalMinutes, color: dominant?.category_color ?? null };
       if (totalMinutes > maxMinutes) maxMinutes = totalMinutes;
     }
 
@@ -110,12 +97,12 @@ export function HomePage() {
     const scaleMax = Math.max(maxMinutes, 30);
 
     for (let i = 6; i <= 21; i++) {
-      const { minutes, category } = hourTotals[i];
+      const { minutes, color } = hourTotals[i];
       hours.push({
         hour: i,
         label: `${i}:00`,
         minutes,
-        category,
+        color,
         height: minutes > 0 ? Math.max(8, (minutes / scaleMax) * 100) : 0,
       });
     }
@@ -204,9 +191,7 @@ export function HomePage() {
                     className="w-full rounded-t transition-all duration-300"
                     style={{
                       height: hour.minutes > 0 ? `${hour.height}%` : "4px",
-                      backgroundColor: hour.category
-                        ? CATEGORY_COLORS[hour.category]
-                        : "#27272a",
+                      backgroundColor: hour.color || "#27272a",
                       minHeight: hour.minutes > 0 ? "8px" : "4px",
                     }}
                   />
@@ -227,7 +212,7 @@ export function HomePage() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ backgroundColor: CATEGORY_COLORS[currentActivity.category] }}
+                    style={{ backgroundColor: currentActivity.categoryColor }}
                   />
                   <div>
                     <p className="text-sm font-medium text-white">{currentActivity.appName}</p>
@@ -240,9 +225,9 @@ export function HomePage() {
                   </p>
                   <span
                     className="text-[10px] uppercase tracking-wider"
-                    style={{ color: CATEGORY_COLORS[currentActivity.category] }}
+                    style={{ color: currentActivity.categoryColor }}
                   >
-                    {currentActivity.category}
+                    {currentActivity.categoryName}
                   </span>
                 </div>
               </div>
@@ -265,7 +250,7 @@ export function HomePage() {
                     </span>
                     <span
                       className="w-1 h-4 rounded-full"
-                      style={{ backgroundColor: CATEGORY_COLORS[session.category || "uncategorized"] || CATEGORY_COLORS.uncategorized }}
+                      style={{ backgroundColor: session.category_color || "#71717a" }}
                     />
                     <span className="text-white truncate flex-1">{session.app_name}</span>
                     {session.activity_count > 1 && (
@@ -381,15 +366,15 @@ export function HomePage() {
               {categoryBreakdown.slice(0, 6).map((cat) => {
                 const percent = getPercentage(cat.total_duration, totalTime);
                 return (
-                  <div key={cat.category} className="flex items-center gap-2">
+                  <div key={cat.category_id} className="flex items-center gap-2">
                     <span className="text-xs text-grey-500 w-7 flex-shrink-0">{percent}%</span>
-                    <span className="capitalize text-sm text-white flex-1 truncate min-w-0">{cat.category}</span>
+                    <span className="capitalize text-sm text-white flex-1 truncate min-w-0">{cat.category_name}</span>
                     <div className="w-12 h-1.5 bg-grey-800 rounded-full overflow-hidden flex-shrink-0">
                       <div
                         className="h-full rounded-full"
                         style={{
                           width: `${percent}%`,
-                          backgroundColor: CATEGORY_COLORS[cat.category] || CATEGORY_COLORS.uncategorized,
+                          backgroundColor: cat.category_color,
                         }}
                       />
                     </div>
