@@ -5,13 +5,30 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 2; // Bump this to force a DB reset + re-seed
+const DB_VERSION = 3; // Bump this to force a DB reset + re-seed
+
+// Rule definition with optional matchMode (defaults to "contains")
+interface RuleDef {
+  pattern: string;
+  matchMode?: "exact" | "contains" | "regex";
+}
 
 // Default category seed data
-const DEFAULT_CATEGORIES = [
+const DEFAULT_CATEGORIES: Array<{
+  name: string;
+  color: string;
+  priority: number;
+  rules: {
+    apps: (string | RuleDef)[];
+    domains: (string | RuleDef)[];
+    keywords: (string | RuleDef)[];
+    domainKeywords?: (string | RuleDef)[];
+  };
+}> = [
   {
     name: "development",
     color: "#6366F1",
+    priority: 10,
     rules: {
       apps: [
         "Code", "Visual Studio Code", "VS Code", "WebStorm", "IntelliJ",
@@ -24,13 +41,17 @@ const DEFAULT_CATEGORIES = [
       ],
       keywords: [
         "debug", "coding", "terminal", "git", "npm", "yarn", "build",
-        "compile", "deploy", "\\bta\\b", "\\btat\\b", "nvim", "vim",
+        "compile", "deploy",
+        { pattern: "\\bta\\b", matchMode: "regex" },
+        { pattern: "\\btat\\b", matchMode: "regex" },
+        "nvim", "vim",
       ],
     },
   },
   {
     name: "communication",
     color: "#22C55E",
+    priority: 10,
     rules: {
       apps: [
         "Slack", "Discord", "Microsoft Teams", "Zoom", "Skype",
@@ -40,12 +61,13 @@ const DEFAULT_CATEGORIES = [
         "slack.com", "discord.com", "teams.microsoft.com", "zoom.us",
         "meet.google.com",
       ],
-      keywords: ["chat", "meeting", "call", "video"],
+      keywords: ["chat", "meeting", "call"],
     },
   },
   {
     name: "social",
     color: "#EAB308",
+    priority: 4,
     rules: {
       apps: ["Twitter", "Facebook", "TweetDeck"],
       domains: [
@@ -58,18 +80,20 @@ const DEFAULT_CATEGORIES = [
   {
     name: "entertainment",
     color: "#EF4444",
+    priority: 4,
     rules: {
       apps: ["Spotify", "Apple Music", "Netflix", "VLC", "IINA", "Plex"],
       domains: [
         "youtube.com", "netflix.com", "spotify.com", "twitch.tv",
         "hulu.com", "disneyplus.com", "primevideo.com",
       ],
-      keywords: ["video", "music", "stream", "watch", "play"],
+      keywords: ["music", "stream", "watch", "play"],
     },
   },
   {
     name: "productivity",
     color: "#A855F7",
+    priority: 8,
     rules: {
       apps: [
         "Notion", "Obsidian", "Evernote", "Microsoft Word", "Excel",
@@ -85,18 +109,24 @@ const DEFAULT_CATEGORIES = [
   {
     name: "research",
     color: "#0EA5E9",
+    priority: 6,
     rules: {
       apps: [],
       domains: [
-        "google.com/search", "wikipedia.org", "medium.com", "dev.to",
+        "wikipedia.org", "medium.com", "dev.to",
         "arxiv.org", "scholar.google.com",
       ],
       keywords: ["search", "research", "article", "tutorial", "learn", "wiki"],
+      domainKeywords: [
+        "youtube.com|tutorial", "youtube.com|learn", "youtube.com|course",
+        "youtube.com|how to", "youtube.com|lecture", "youtube.com|documentation",
+      ],
     },
   },
   {
     name: "email",
     color: "#EC4899",
+    priority: 10,
     rules: {
       apps: ["Mail", "Outlook", "Thunderbird", "Spark", "Airmail"],
       domains: [
@@ -108,6 +138,7 @@ const DEFAULT_CATEGORIES = [
   {
     name: "design",
     color: "#F97316",
+    priority: 10,
     rules: {
       apps: [
         "Figma", "Sketch", "Adobe Photoshop", "Adobe Illustrator",
@@ -120,6 +151,7 @@ const DEFAULT_CATEGORIES = [
   {
     name: "uncategorized",
     color: "#64748B",
+    priority: 0,
     rules: { apps: [], domains: [], keywords: [] },
   },
 ];
@@ -154,6 +186,7 @@ function createDatabase() {
       name TEXT NOT NULL UNIQUE,
       color TEXT NOT NULL,
       is_default INTEGER NOT NULL DEFAULT 1,
+      priority INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -162,7 +195,8 @@ function createDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
       type TEXT NOT NULL,
-      pattern TEXT NOT NULL
+      pattern TEXT NOT NULL,
+      match_mode TEXT NOT NULL DEFAULT 'contains'
     )
   `);
   sqlite.exec(`
@@ -227,22 +261,42 @@ function seedDatabase(db: ReturnType<typeof drizzle>) {
         name: cat.name,
         color: cat.color,
         isDefault: 1,
+        priority: cat.priority,
       })
       .returning({ id: categories.id })
       .get();
 
     const categoryId = result.id;
 
-    const ruleRows: Array<{ categoryId: number; type: string; pattern: string }> = [];
+    const ruleRows: Array<{ categoryId: number; type: string; pattern: string; matchMode: string }> = [];
 
-    for (const app of cat.rules.apps) {
-      ruleRows.push({ categoryId, type: "app", pattern: app });
+    for (const item of cat.rules.apps) {
+      if (typeof item === "string") {
+        ruleRows.push({ categoryId, type: "app", pattern: item, matchMode: "contains" });
+      } else {
+        ruleRows.push({ categoryId, type: "app", pattern: item.pattern, matchMode: item.matchMode ?? "contains" });
+      }
     }
-    for (const domain of cat.rules.domains) {
-      ruleRows.push({ categoryId, type: "domain", pattern: domain });
+    for (const item of cat.rules.domains) {
+      if (typeof item === "string") {
+        ruleRows.push({ categoryId, type: "domain", pattern: item, matchMode: "contains" });
+      } else {
+        ruleRows.push({ categoryId, type: "domain", pattern: item.pattern, matchMode: item.matchMode ?? "contains" });
+      }
     }
-    for (const keyword of cat.rules.keywords) {
-      ruleRows.push({ categoryId, type: "keyword", pattern: keyword });
+    for (const item of cat.rules.keywords) {
+      if (typeof item === "string") {
+        ruleRows.push({ categoryId, type: "keyword", pattern: item, matchMode: "contains" });
+      } else {
+        ruleRows.push({ categoryId, type: "keyword", pattern: item.pattern, matchMode: item.matchMode ?? "contains" });
+      }
+    }
+    for (const item of cat.rules.domainKeywords ?? []) {
+      if (typeof item === "string") {
+        ruleRows.push({ categoryId, type: "domain_keyword", pattern: item, matchMode: "contains" });
+      } else {
+        ruleRows.push({ categoryId, type: "domain_keyword", pattern: item.pattern, matchMode: item.matchMode ?? "contains" });
+      }
     }
 
     if (ruleRows.length > 0) {

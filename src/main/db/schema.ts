@@ -7,6 +7,7 @@ export const categories = sqliteTable("categories", {
   name: text("name").notNull().unique(),
   color: text("color").notNull(),
   isDefault: integer("is_default").notNull().default(1),
+  priority: integer("priority").notNull().default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -16,8 +17,9 @@ export const categoryRules = sqliteTable("category_rules", {
   categoryId: integer("category_id")
     .notNull()
     .references(() => categories.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // "app" | "domain" | "keyword"
+  type: text("type").notNull(), // "app" | "domain" | "keyword" | "domain_keyword"
   pattern: text("pattern").notNull(),
+  matchMode: text("match_mode").notNull().default("contains"), // "exact" | "contains" | "regex"
 });
 
 // Sessions table - groups consecutive activities by app
