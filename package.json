@@ -30,6 +30,7 @@
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron-forge/plugin-vite": "^7.11.1",
     "@electron/fuses": "^1.8.0",
+    "@electron/osx-sign": "^2.3.0",
     "@electron/rebuild": "^4.0.3",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/electron-squirrel-startup": "^1.0.2",

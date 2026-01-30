@@ -5,8 +5,6 @@ import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { VitePlugin } from '@electron-forge/plugin-vite';
-import { FusesPlugin } from '@electron-forge/plugin-fuses';
-import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 // External native modules that Vite doesn't bundle
 const externalModules = ['get-windows', 'better-sqlite3'];
@@ -42,6 +40,9 @@ const config: ForgeConfig = {
   packagerConfig: {
     appBundleId: 'com.activity-tracker.app',
     icon: './src/assets/icon',
+    osxSign: {
+      identity: 'ActivityTracker',
+    },
     asar: {
       unpack: '**/*.node',
     },
@@ -61,7 +62,12 @@ const config: ForgeConfig = {
     force: true,
   },
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({
+      setupIcon: './src/assets/icon.ico',
+      iconUrl: 'https://raw.githubusercontent.com/Yosef-Adel/activity-tracker/main/src/assets/icon.ico',
+      name: 'ActivityTracker',
+      title: 'Activity Tracker',
+    }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),
@@ -87,15 +93,6 @@ const config: ForgeConfig = {
           config: 'vite.renderer.config.mts',
         },
       ],
-    }),
-    new FusesPlugin({
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableCookieEncryption]: true,
-      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-      [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };
