@@ -1,15 +1,14 @@
+import { useEffect, useState } from "react";
 import { Card } from "../components";
+import type { CategoryInfo, CategoryRule } from "../types/electron";
 
-const CATEGORY_CONFIG = [
-  { name: "Development", color: "#8b5cf6", type: "Productive", apps: ["VS Code", "WebStorm", "Xcode", "Terminal"] },
-  { name: "Productivity", color: "#a855f7", type: "Productive", apps: ["Notion", "Obsidian", "Notes"] },
-  { name: "Research", color: "#0ea5e9", type: "Productive", apps: ["Safari", "Chrome (docs)"] },
-  { name: "Design", color: "#f97316", type: "Productive", apps: ["Figma", "Sketch"] },
-  { name: "Communication", color: "#22c55e", type: "Neutral", apps: ["Slack", "Discord", "Teams"] },
-  { name: "Email", color: "#ec4899", type: "Neutral", apps: ["Mail", "Gmail"] },
-  { name: "Entertainment", color: "#ef4444", type: "Distracting", apps: ["YouTube", "Netflix", "Spotify"] },
-  { name: "Social", color: "#eab308", type: "Distracting", apps: ["Twitter", "Facebook", "Instagram"] },
+const COLOR_PALETTE = [
+  "#8b5cf6", "#a855f7", "#6366f1", "#0ea5e9",
+  "#14b8a6", "#22c55e", "#84cc16", "#eab308",
+  "#f97316", "#ef4444", "#f43f5e", "#ec4899",
 ];
+
+const RULE_TYPES = ["app", "domain", "keyword", "domain_keyword", "file_path"];
 
 function ComingSoonOverlay() {
   return (
@@ -23,7 +22,194 @@ function ComingSoonOverlay() {
   );
 }
 
+interface CategoryFormData {
+  name: string;
+  color: string;
+}
+
+function CategoryForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial?: CategoryFormData;
+  onSave: (data: CategoryFormData) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial?.name || "");
+  const [color, setColor] = useState(initial?.color || COLOR_PALETTE[0]);
+
+  return (
+    <div className="space-y-3 py-3">
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-grey-500 mb-1 block">Name</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. gaming"
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white placeholder:text-grey-600 outline-none focus:border-white/20"
+          autoFocus
+        />
+      </div>
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-grey-500 mb-1.5 block">Color</label>
+        <div className="flex flex-wrap gap-1.5">
+          {COLOR_PALETTE.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className={`w-6 h-6 rounded-full transition-all ${
+                color === c ? "ring-2 ring-white/40 ring-offset-1 ring-offset-[#111113] scale-110" : "hover:scale-110"
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={onCancel}
+          className="px-3 py-1 text-xs text-grey-400 hover:text-white rounded-md hover:bg-white/5 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => name.trim() && onSave({ name: name.trim().toLowerCase().replace(/\s+/g, "_"), color })}
+          disabled={!name.trim()}
+          className="px-3 py-1 text-xs rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-primary text-white hover:bg-primary-dark"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AddRuleForm({
+  onAdd,
+  onCancel,
+}: {
+  onAdd: (type: string, pattern: string) => void;
+  onCancel: () => void;
+}) {
+  const [type, setType] = useState("domain");
+  const [pattern, setPattern] = useState("");
+
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <select
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        className="bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white outline-none"
+      >
+        {RULE_TYPES.map((t) => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <input
+        type="text"
+        value={pattern}
+        onChange={(e) => setPattern(e.target.value)}
+        placeholder="e.g. github.com"
+        className="flex-1 bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white placeholder:text-grey-600 outline-none focus:border-white/20"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && pattern.trim()) {
+            onAdd(type, pattern.trim());
+            setPattern("");
+          }
+        }}
+      />
+      <button
+        onClick={() => {
+          if (pattern.trim()) {
+            onAdd(type, pattern.trim());
+            setPattern("");
+          }
+        }}
+        disabled={!pattern.trim()}
+        className="px-2 py-1 text-xs rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+      >
+        Add
+      </button>
+      <button
+        onClick={onCancel}
+        className="px-2 py-1 text-xs text-grey-500 hover:text-white transition-all"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 export function SettingsPage() {
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [rulesMap, setRulesMap] = useState<Record<number, CategoryRule[]>>({});
+  const [addingRuleForId, setAddingRuleForId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const fetchCategories = async () => {
+    const cats = await window.electronAPI.getCategories();
+    setCategories(cats);
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchRules = async (categoryId: number) => {
+    const rules = await window.electronAPI.getCategoryRules(categoryId);
+    setRulesMap((prev) => ({ ...prev, [categoryId]: rules }));
+  };
+
+  const toggleExpand = (id: number) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(id);
+      if (!rulesMap[id]) {
+        fetchRules(id);
+      }
+    }
+  };
+
+  const handleCreate = async (data: CategoryFormData) => {
+    await window.electronAPI.createCategory(data.name, data.color);
+    await window.electronAPI.reloadCategories();
+    await fetchCategories();
+    setIsAdding(false);
+  };
+
+  const handleUpdate = async (id: number, data: CategoryFormData) => {
+    await window.electronAPI.updateCategory(id, data.name, data.color);
+    await window.electronAPI.reloadCategories();
+    await fetchCategories();
+    setEditingId(null);
+  };
+
+  const handleDelete = async (id: number) => {
+    await window.electronAPI.deleteCategory(id);
+    await window.electronAPI.reloadCategories();
+    await fetchCategories();
+    setDeletingId(null);
+    if (expandedId === id) setExpandedId(null);
+  };
+
+  const handleAddRule = async (categoryId: number, type: string, pattern: string) => {
+    await window.electronAPI.addCategoryRule(categoryId, type, pattern);
+    await window.electronAPI.reloadCategories();
+    await fetchRules(categoryId);
+    setAddingRuleForId(null);
+  };
+
+  const handleRemoveRule = async (categoryId: number, ruleId: number) => {
+    await window.electronAPI.removeCategoryRule(ruleId);
+    await window.electronAPI.reloadCategories();
+    await fetchRules(categoryId);
+  };
 
   return (
     <div className="p-6">
@@ -143,40 +329,176 @@ export function SettingsPage() {
           </div>
         </Card>
 
-        {/* Categories - Coming Soon */}
-        <Card className="lg:col-span-2 xl:col-span-2 relative">
-          <ComingSoonOverlay />
-          <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Categories</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-            {CATEGORY_CONFIG.map((category) => (
-              <div
-                key={category.name}
-                className="flex items-center justify-between py-3 border-b border-white/[0.04] last:border-0"
+        {/* Categories - LIVE */}
+        <Card className="lg:col-span-2 xl:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[11px] uppercase tracking-wider text-grey-500">Categories</p>
+            {!isAdding && (
+              <button
+                onClick={() => { setIsAdding(true); setEditingId(null); }}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-grey-400 hover:text-white rounded-md hover:bg-white/5 transition-all"
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <div>
-                    <span className="text-sm text-white">{category.name}</span>
-                    <p className="text-[10px] text-grey-600">{category.apps.join(", ")}</p>
-                  </div>
-                </div>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded ${
-                    category.type === "Productive"
-                      ? "text-success bg-success/10"
-                      : category.type === "Distracting"
-                      ? "text-error bg-error/10"
-                      : "text-grey-400 bg-white/5"
-                  }`}
-                >
-                  {category.type}
-                </span>
-              </div>
-            ))}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Category
+              </button>
+            )}
           </div>
+
+          {isAdding && (
+            <div className="mb-3 px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+              <CategoryForm
+                onSave={handleCreate}
+                onCancel={() => setIsAdding(false)}
+              />
+            </div>
+          )}
+
+          <div className="space-y-0.5">
+            {categories.map((cat) => {
+              const isExpanded = expandedId === cat.id;
+              const isEditing = editingId === cat.id;
+              const isDeleting = deletingId === cat.id;
+              const rules = rulesMap[cat.id] || [];
+
+              return (
+                <div key={cat.id} className="border-b border-white/[0.04] last:border-0">
+                  {isEditing ? (
+                    <div className="px-3 py-2 bg-white/[0.03] rounded-lg">
+                      <CategoryForm
+                        initial={{ name: cat.name, color: cat.color }}
+                        onSave={(data) => handleUpdate(cat.id, data)}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="group">
+                      <div className="flex items-center justify-between py-3">
+                        <button
+                          onClick={() => toggleExpand(cat.id)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          <svg
+                            className={`w-3 h-3 text-grey-600 transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          <span className="text-sm text-white truncate">{cat.name.replace(/_/g, " ")}</span>
+                          {rules.length > 0 && (
+                            <span className="text-[10px] text-grey-600">{rules.length} rules</span>
+                          )}
+                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => { setEditingId(cat.id); setIsAdding(false); }}
+                            className="p-1.5 rounded hover:bg-white/5 transition-all"
+                            title="Edit"
+                          >
+                            <svg className="w-3.5 h-3.5 text-grey-500 hover:text-grey-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                          </button>
+                          {!cat.isDefault && (
+                            <button
+                              onClick={() => setDeletingId(cat.id)}
+                              className="p-1.5 rounded hover:bg-white/5 transition-all"
+                              title="Delete"
+                            >
+                              <svg className="w-3.5 h-3.5 text-grey-500 hover:text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Delete confirmation */}
+                      {isDeleting && (
+                        <div className="px-3 py-2.5 mb-2 bg-error/5 border border-error/20 rounded-lg">
+                          <p className="text-xs text-grey-300 mb-2">
+                            Delete <strong className="text-white">{cat.name.replace(/_/g, " ")}</strong>? All activities in this category will become uncategorized.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setDeletingId(null)}
+                              className="px-3 py-1 text-xs text-grey-400 hover:text-white rounded-md hover:bg-white/5 transition-all"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleDelete(cat.id)}
+                              className="px-3 py-1 text-xs rounded-md bg-error text-white hover:bg-error/80 transition-all"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Expanded rules section */}
+                      {isExpanded && (
+                        <div className="pb-3 pl-9">
+                          {rules.length === 0 ? (
+                            <p className="text-xs text-grey-600 mb-2">No rules yet</p>
+                          ) : (
+                            <div className="space-y-1 mb-2">
+                              {rules.map((rule) => (
+                                <div key={rule.id} className="group/rule flex items-center gap-2 py-1">
+                                  <span className="px-1.5 py-0.5 text-[10px] bg-white/5 text-grey-500 rounded font-mono">
+                                    {rule.type}
+                                  </span>
+                                  <span className="text-xs text-grey-300 truncate flex-1">{rule.pattern}</span>
+                                  <button
+                                    onClick={() => handleRemoveRule(cat.id, rule.id)}
+                                    className="opacity-0 group-hover/rule:opacity-100 p-0.5 rounded hover:bg-white/5 transition-all"
+                                    title="Remove rule"
+                                  >
+                                    <svg className="w-3 h-3 text-grey-600 hover:text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {addingRuleForId === cat.id ? (
+                            <AddRuleForm
+                              onAdd={(type, pattern) => handleAddRule(cat.id, type, pattern)}
+                              onCancel={() => setAddingRuleForId(null)}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setAddingRuleForId(cat.id)}
+                              className="flex items-center gap-1 text-[11px] text-grey-500 hover:text-grey-300 transition-all"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                              </svg>
+                              Add rule
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {categories.length === 0 && !isAdding && (
+            <p className="text-xs text-grey-600 text-center py-4">No categories found</p>
+          )}
         </Card>
 
         {/* Data Management - Coming Soon */}
