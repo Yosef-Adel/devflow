@@ -1,5 +1,5 @@
 import { gte, lte, and, sql, desc, isNotNull, eq, like, inArray } from "drizzle-orm";
-import { getDb, activities, sessions, categories, type Activity, type Session } from "../db";
+import { getDb, activities, sessions, categories, projects, type Activity, type Session } from "../db";
 
 // Re-export types for external use
 export type { Activity, Session };
@@ -349,31 +349,35 @@ class ActivityDatabase {
     }));
   }
 
-  // Get project time aggregated
+  // Get project time aggregated (from user-assigned projects on sessions)
   getProjectTime(
     startTime: number,
     endTime: number
-  ): Array<{ project_name: string; total_duration: number; session_count: number }> {
+  ): Array<{ project_id: number; project_name: string; project_color: string; total_duration: number; session_count: number }> {
     const results = this.db
       .select({
-        project_name: activities.projectName,
-        total_duration: sql<number>`sum(${activities.duration})`,
+        project_id: projects.id,
+        project_name: projects.name,
+        project_color: projects.color,
+        total_duration: sql<number>`sum(${sessions.totalDuration})`,
         session_count: sql<number>`count(*)`,
       })
-      .from(activities)
+      .from(sessions)
+      .innerJoin(projects, eq(sessions.projectId, projects.id))
       .where(
         and(
-          gte(activities.startTime, startTime),
-          lte(activities.startTime, endTime),
-          isNotNull(activities.projectName)
+          gte(sessions.startTime, startTime),
+          lte(sessions.startTime, endTime),
         )
       )
-      .groupBy(activities.projectName)
-      .orderBy(desc(sql`sum(${activities.duration})`))
+      .groupBy(projects.id)
+      .orderBy(desc(sql`sum(${sessions.totalDuration})`))
       .all();
 
     return results as Array<{
+      project_id: number;
       project_name: string;
+      project_color: string;
       total_duration: number;
       session_count: number;
     }>;
@@ -662,6 +666,61 @@ class ActivityDatabase {
       .run();
 
     return matchingSessionIds.length;
+  }
+
+  // --- Project CRUD ---
+
+  getProjects(): Array<{ id: number; name: string; color: string }> {
+    return this.db
+      .select({ id: projects.id, name: projects.name, color: projects.color })
+      .from(projects)
+      .orderBy(projects.name)
+      .all();
+  }
+
+  createProject(name: string, color: string): { id: number } {
+    const result = this.db
+      .insert(projects)
+      .values({ name, color })
+      .returning({ id: projects.id })
+      .get();
+    return { id: result?.id ?? 0 };
+  }
+
+  updateProject(id: number, name?: string, color?: string): void {
+    const updates: Record<string, string> = {};
+    if (name !== undefined) updates.name = name;
+    if (color !== undefined) updates.color = color;
+    if (Object.keys(updates).length === 0) return;
+
+    this.db.update(projects).set(updates).where(eq(projects.id, id)).run();
+  }
+
+  deleteProject(id: number): void {
+    // Unassign all sessions from this project
+    this.db
+      .update(sessions)
+      .set({ projectId: null })
+      .where(eq(sessions.projectId, id))
+      .run();
+    // Delete the project
+    this.db.delete(projects).where(eq(projects.id, id)).run();
+  }
+
+  assignSessionToProject(sessionId: number, projectId: number): void {
+    this.db
+      .update(sessions)
+      .set({ projectId })
+      .where(eq(sessions.id, sessionId))
+      .run();
+  }
+
+  unassignSessionFromProject(sessionId: number): void {
+    this.db
+      .update(sessions)
+      .set({ projectId: null })
+      .where(eq(sessions.id, sessionId))
+      .run();
   }
 
   // Close is not needed with Drizzle, but keep for API compatibility

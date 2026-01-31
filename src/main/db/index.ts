@@ -5,7 +5,7 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 5; // Bump this to force a DB reset + re-seed
+const DB_VERSION = 6; // Bump this to force a DB reset + re-seed
 
 // Rule definition with optional matchMode (defaults to "contains")
 interface RuleDef {
@@ -287,6 +287,7 @@ function createDatabase() {
     sqlite.exec("DROP TABLE IF EXISTS category_rules");
     sqlite.exec("DROP TABLE IF EXISTS activities");
     sqlite.exec("DROP TABLE IF EXISTS sessions");
+    sqlite.exec("DROP TABLE IF EXISTS projects");
     sqlite.exec("DROP TABLE IF EXISTS categories");
 
     // Set new version
@@ -314,10 +315,19 @@ function createDatabase() {
     )
   `);
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       app_name TEXT NOT NULL,
       category_id INTEGER REFERENCES categories(id),
+      project_id INTEGER REFERENCES projects(id),
       start_time INTEGER NOT NULL,
       end_time INTEGER NOT NULL,
       total_duration INTEGER NOT NULL DEFAULT 0,
@@ -353,6 +363,7 @@ function createDatabase() {
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_start_time ON activities(start_time)");
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_session_id ON activities(session_id)");
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(start_time)");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)");
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_category_rules_cat ON category_rules(category_id)");
 
   const db = drizzle(sqlite, { schema });

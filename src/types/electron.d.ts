@@ -32,8 +32,16 @@ export interface CategoryBreakdown {
   session_count: number;
 }
 
+export interface ProjectInfo {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface ProjectTime {
+  project_id: number;
   project_name: string;
+  project_color: string;
   total_duration: number;
   session_count: number;
 }
@@ -166,6 +174,14 @@ export interface ElectronAPI {
   // Recategorize
   recategorizeSession: (sessionId: number, categoryId: number) => Promise<void>;
   recategorizeByRule: (ruleType: string, pattern: string, categoryId: number) => Promise<number>;
+
+  // Projects
+  getProjects: () => Promise<ProjectInfo[]>;
+  createProject: (name: string, color: string) => Promise<{ id: number }>;
+  updateProject: (id: number, name?: string, color?: string) => Promise<void>;
+  deleteProject: (id: number) => Promise<void>;
+  assignSessionToProject: (sessionId: number, projectId: number) => Promise<void>;
+  unassignSessionFromProject: (sessionId: number) => Promise<void>;
 
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => () => void;

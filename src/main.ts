@@ -296,6 +296,31 @@ ipcMain.handle("tracker:recategorizeByRule", (_event, ruleType: string, pattern:
   return tracker?.getDatabase().recategorizeByRule(ruleType, pattern, categoryId) ?? 0;
 });
 
+// Project IPC handlers
+ipcMain.handle("tracker:getProjects", () => {
+  return tracker?.getDatabase().getProjects() ?? [];
+});
+
+ipcMain.handle("tracker:createProject", (_event, name: string, color: string) => {
+  return tracker?.getDatabase().createProject(name, color) ?? { id: 0 };
+});
+
+ipcMain.handle("tracker:updateProject", (_event, id: number, name?: string, color?: string) => {
+  tracker?.getDatabase().updateProject(id, name, color);
+});
+
+ipcMain.handle("tracker:deleteProject", (_event, id: number) => {
+  tracker?.getDatabase().deleteProject(id);
+});
+
+ipcMain.handle("tracker:assignSessionToProject", (_event, sessionId: number, projectId: number) => {
+  tracker?.getDatabase().assignSessionToProject(sessionId, projectId);
+});
+
+ipcMain.handle("tracker:unassignSessionFromProject", (_event, sessionId: number) => {
+  tracker?.getDatabase().unassignSessionFromProject(sessionId);
+});
+
 // Permissions IPC handlers
 ipcMain.handle("permissions:getStatus", () => {
   return getPermissionsStatus();

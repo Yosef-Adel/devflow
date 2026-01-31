@@ -22,11 +22,20 @@ export const categoryRules = sqliteTable("category_rules", {
   matchMode: text("match_mode").notNull().default("contains"), // "exact" | "contains" | "regex"
 });
 
+// Projects table - user-created projects for grouping sessions
+export const projects = sqliteTable("projects", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Sessions table - groups consecutive activities by app
 export const sessions = sqliteTable("sessions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   appName: text("app_name").notNull(),
   categoryId: integer("category_id").references(() => categories.id),
+  projectId: integer("project_id").references(() => projects.id),
   startTime: integer("start_time").notNull(),
   endTime: integer("end_time").notNull(),
   totalDuration: integer("total_duration").notNull().default(0),
@@ -59,6 +68,8 @@ export type CategoryRow = typeof categories.$inferSelect;
 export type NewCategoryRow = typeof categories.$inferInsert;
 export type CategoryRuleRow = typeof categoryRules.$inferSelect;
 export type NewCategoryRuleRow = typeof categoryRules.$inferInsert;
+export type ProjectRow = typeof projects.$inferSelect;
+export type NewProjectRow = typeof projects.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Activity = typeof activities.$inferSelect;

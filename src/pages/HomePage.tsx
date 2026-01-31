@@ -272,13 +272,17 @@ export function HomePage() {
                 {projectTime.slice(0, 6).map((project) => {
                   const percent = getPercentage(project.total_duration, totalTime);
                   return (
-                    <div key={project.project_name} className="flex items-center gap-3">
+                    <div key={project.project_id} className="flex items-center gap-3">
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: project.project_color }}
+                      />
                       <span className="text-xs text-grey-500 w-8">{percent}%</span>
                       <span className="text-sm text-white flex-1 truncate">{project.project_name}</span>
                       <div className="w-20 h-1.5 bg-grey-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary rounded-full"
-                          style={{ width: `${percent}%` }}
+                          className="h-full rounded-full"
+                          style={{ width: `${percent}%`, backgroundColor: project.project_color }}
                         />
                       </div>
                       <span className="text-xs text-grey-500 w-16 text-right">
@@ -288,7 +292,7 @@ export function HomePage() {
                   );
                 })}
                 {projectTime.length === 0 && (
-                  <p className="text-grey-500 text-sm">No projects detected</p>
+                  <p className="text-grey-500 text-sm">No projects yet — assign sessions in Activities</p>
                 )}
               </div>
             </Card>

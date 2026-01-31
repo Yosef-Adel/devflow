@@ -209,6 +209,25 @@ contextBridge.exposeInMainWorld("electronAPI", {
   recategorizeByRule: (ruleType: string, pattern: string, categoryId: number): Promise<number> =>
     ipcRenderer.invoke("tracker:recategorizeByRule", ruleType, pattern, categoryId),
 
+  // Projects
+  getProjects: (): Promise<Array<{ id: number; name: string; color: string }>> =>
+    ipcRenderer.invoke("tracker:getProjects"),
+
+  createProject: (name: string, color: string): Promise<{ id: number }> =>
+    ipcRenderer.invoke("tracker:createProject", name, color),
+
+  updateProject: (id: number, name?: string, color?: string): Promise<void> =>
+    ipcRenderer.invoke("tracker:updateProject", id, name, color),
+
+  deleteProject: (id: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:deleteProject", id),
+
+  assignSessionToProject: (sessionId: number, projectId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:assignSessionToProject", sessionId, projectId),
+
+  unassignSessionFromProject: (sessionId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:unassignSessionFromProject", sessionId),
+
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => {
     const subscription = (
