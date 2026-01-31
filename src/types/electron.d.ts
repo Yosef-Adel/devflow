@@ -163,6 +163,9 @@ export interface ElectronAPI {
   removeCategoryRule: (ruleId: number) => Promise<void>;
   reloadCategories: () => Promise<void>;
 
+  // Recategorize
+  recategorizeSession: (sessionId: number, categoryId: number) => Promise<void>;
+
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => () => void;
 

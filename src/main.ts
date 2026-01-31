@@ -288,6 +288,10 @@ ipcMain.handle("tracker:reloadCategories", () => {
   tracker?.reloadCategories();
 });
 
+ipcMain.handle("tracker:recategorizeSession", (_event, sessionId: number, categoryId: number) => {
+  tracker?.getDatabase().recategorizeSession(sessionId, categoryId);
+});
+
 // Permissions IPC handlers
 ipcMain.handle("permissions:getStatus", () => {
   return getPermissionsStatus();

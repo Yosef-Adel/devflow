@@ -505,6 +505,20 @@ class ActivityDatabase {
     }));
   }
 
+  // Recategorize all activities in a session and the session itself
+  recategorizeSession(sessionId: number, categoryId: number): void {
+    this.db
+      .update(activities)
+      .set({ categoryId })
+      .where(eq(activities.sessionId, sessionId))
+      .run();
+    this.db
+      .update(sessions)
+      .set({ categoryId })
+      .where(eq(sessions.id, sessionId))
+      .run();
+  }
+
   // Close is not needed with Drizzle, but keep for API compatibility
   close(): void {
     // Drizzle handles connection management
