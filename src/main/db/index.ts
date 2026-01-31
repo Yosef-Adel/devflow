@@ -5,7 +5,14 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 7; // Bump this to force a DB reset + re-seed
+const DB_VERSION = 7;
+
+// Incremental migrations keyed by target version.
+// Each function receives the raw sqlite instance and runs ALTER/CREATE statements.
+const MIGRATIONS: Record<number, (sqlite: Database) => void> = {
+  // Example for future use:
+  // 8: (sqlite) => { sqlite.exec("ALTER TABLE activities ADD COLUMN tags TEXT"); },
+};
 
 // Rule definition with optional matchMode (defaults to "contains")
 interface RuleDef {
@@ -279,19 +286,24 @@ function createDatabase() {
   // Enable foreign keys
   sqlite.pragma("foreign_keys = ON");
 
-  // Check version and reset if needed
+  // Incremental migration: preserve user data across version bumps
   const currentVersion = sqlite.pragma("user_version", { simple: true }) as number;
 
-  if (currentVersion < DB_VERSION) {
-    // Drop all tables and recreate
-    sqlite.exec("DROP TABLE IF EXISTS category_rules");
-    sqlite.exec("DROP TABLE IF EXISTS activities");
-    sqlite.exec("DROP TABLE IF EXISTS sessions");
-    sqlite.exec("DROP TABLE IF EXISTS pomodoro_sessions");
-    sqlite.exec("DROP TABLE IF EXISTS projects");
-    sqlite.exec("DROP TABLE IF EXISTS categories");
+  if (currentVersion === 0) {
+    // Fresh install — tables will be created below via CREATE TABLE IF NOT EXISTS,
+    // and seedDatabase() will populate default categories.
+    // Set version after table creation.
+  } else if (currentVersion < DB_VERSION) {
+    // Run incremental migrations from currentVersion+1 to DB_VERSION
+    for (let v = currentVersion + 1; v <= DB_VERSION; v++) {
+      if (MIGRATIONS[v]) {
+        MIGRATIONS[v](sqlite);
+      }
+    }
+  }
 
-    // Set new version
+  // Always set to current version (handles both fresh install and migrations)
+  if (currentVersion < DB_VERSION) {
     sqlite.pragma(`user_version = ${DB_VERSION}`);
   }
 

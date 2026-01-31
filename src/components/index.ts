@@ -4,3 +4,4 @@ export { RecategorizeModal } from './RecategorizeModal';
 export { AssignProjectModal } from './AssignProjectModal';
 export { ManualEntryModal } from './ManualEntryModal';
 export { PomodoroTimer } from './PomodoroTimer';
+export { GoalCard } from './GoalCard';

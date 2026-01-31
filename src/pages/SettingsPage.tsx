@@ -151,6 +151,9 @@ export function SettingsPage() {
   const [addingRuleForId, setAddingRuleForId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  // Version state
+  const [appVersion, setAppVersion] = useState("...");
+
   // Project state
   const [projectList, setProjectList] = useState<ProjectInfo[]>([]);
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
@@ -170,6 +173,7 @@ export function SettingsPage() {
   useEffect(() => {
     fetchCategories();
     fetchProjects();
+    window.electronAPI.updater.getVersion().then(setAppVersion);
   }, []);
 
   const fetchRules = async (categoryId: number) => {
@@ -714,15 +718,20 @@ export function SettingsPage() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between py-1">
               <span className="text-grey-500">Version</span>
-              <span className="text-white">1.0.0-beta</span>
+              <span className="text-white">{appVersion}</span>
             </div>
             <div className="flex justify-between py-1 border-t border-white/[0.06]">
               <span className="text-grey-500">Platform</span>
               <span className="text-white">{navigator.platform}</span>
             </div>
-            <div className="flex justify-between py-1 border-t border-white/[0.06]">
-              <span className="text-grey-500">Electron</span>
-              <span className="text-white">28.0.0</span>
+            <div className="flex justify-between items-center py-1 border-t border-white/[0.06]">
+              <span className="text-grey-500">Feedback</span>
+              <button
+                onClick={() => window.electronAPI.openExternal("https://github.com/Yosef-Adel/activity-tracker/issues/new")}
+                className="text-primary hover:text-primary-light text-sm transition-colors"
+              >
+                Send Feedback →
+              </button>
             </div>
             <div className="pt-3 border-t border-white/[0.06]">
               <p className="text-xs text-grey-500">Settings persistence coming in future updates.</p>

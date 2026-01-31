@@ -252,6 +252,9 @@ export interface ElectronAPI {
   logger: {
     getLogPath(): Promise<string | null>;
   };
+
+  // Shell
+  openExternal(url: string): Promise<void>;
 }
 
 declare global {

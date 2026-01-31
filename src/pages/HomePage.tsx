@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Card, ScoreCircle } from "../components";
+import { Card, ScoreCircle, GoalCard } from "../components";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   fetchTrackerStatus,
@@ -346,6 +346,9 @@ export function HomePage() {
               </div>
             </div>
           </Card>
+
+          {/* Daily Goals */}
+          <GoalCard categoryBreakdown={categoryBreakdown} />
 
           {/* Scores */}
           <Card>

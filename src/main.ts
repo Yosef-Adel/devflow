@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import { TimeTracker } from "./main/tracker";
@@ -27,6 +27,8 @@ let mainWindow: BrowserWindow | null = null;
 let tracker: TimeTracker | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+let pomodoroInterval: ReturnType<typeof setInterval> | null = null;
+let lastActivityLabel = "No activity";
 
 function createTray() {
   // In dev: icon is in src/assets relative to project root
@@ -40,29 +42,23 @@ function createTray() {
   tray = new Tray(icon);
   tray.setToolTip("Activity Tracker");
 
-  // Click tray icon to show/hide window
+  // Any click on the tray icon shows the context menu (no window toggling)
   tray.on("click", () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
-      }
-    }
+    const menu = buildTrayMenu();
+    tray?.popUpContextMenu(menu);
   });
-
-  updateTrayMenu();
+  tray.on("right-click", () => {
+    const menu = buildTrayMenu();
+    tray?.popUpContextMenu(menu);
+  });
 }
 
-function updateTrayMenu(activityLabel?: string) {
-  if (!tray) return;
-
+function buildTrayMenu(): Electron.Menu {
   const isPaused = tracker?.getStatus()?.isPaused ?? false;
 
-  const contextMenu = Menu.buildFromTemplate([
+  return Menu.buildFromTemplate([
     {
-      label: activityLabel || "No activity",
+      label: lastActivityLabel,
       enabled: false,
     },
     { type: "separator" },
@@ -74,7 +70,6 @@ function updateTrayMenu(activityLabel?: string) {
         } else {
           tracker?.pause();
         }
-        updateTrayMenu(activityLabel);
       },
     },
     {
@@ -87,6 +82,7 @@ function updateTrayMenu(activityLabel?: string) {
       },
     },
     { type: "separator" },
+    { label: `v${app.getVersion()}`, enabled: false },
     {
       label: "Quit",
       click: () => {
@@ -95,11 +91,44 @@ function updateTrayMenu(activityLabel?: string) {
       },
     },
   ]);
-
-  tray.setContextMenu(contextMenu);
 }
 
 const createWindow = () => {
+  // Remove the default app menu (File, Edit, View, etc.)
+  // On macOS, keep a minimal menu so standard shortcuts (Cmd+Q, Cmd+C/V/X, etc.) work
+  if (process.platform === "darwin") {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: app.name,
+          submenu: [
+            { role: "about" },
+            { type: "separator" },
+            { role: "hide" },
+            { role: "hideOthers" },
+            { role: "unhide" },
+            { type: "separator" },
+            { role: "quit" },
+          ],
+        },
+        {
+          label: "Edit",
+          submenu: [
+            { role: "undo" },
+            { role: "redo" },
+            { type: "separator" },
+            { role: "cut" },
+            { role: "copy" },
+            { role: "paste" },
+            { role: "selectAll" },
+          ],
+        },
+      ]),
+    );
+  } else {
+    Menu.setApplicationMenu(null);
+  }
+
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, "icon.png")
     : path.join(app.getAppPath(), "src/assets/icon.png");
@@ -163,21 +192,60 @@ async function initializeTracker() {
 
     // Update tray with current activity info
     if (activity) {
-      const label = `${activity.appName} — ${activity.categoryName}`;
+      lastActivityLabel = `${activity.appName} — ${activity.categoryName}`;
       tray?.setToolTip(`Activity Tracker — ${activity.appName}`);
-      updateTrayMenu(label);
     } else {
+      lastActivityLabel = "Idle";
       tray?.setToolTip("Activity Tracker — Idle");
-      updateTrayMenu("Idle");
     }
   });
 
   try {
     await tracker.start();
     log.info("Tracker started successfully");
+
+    // Resume pomodoro tray timer if one is active
+    const activePomodoro = tracker.getDatabase().getActivePomodoro();
+    if (activePomodoro) {
+      const remaining = activePomodoro.duration - (Date.now() - activePomodoro.start_time);
+      if (remaining > 0) startPomodoroTrayTimer();
+    }
   } catch (err) {
     log.error("Failed to start tracker:", err);
   }
+}
+
+function startPomodoroTrayTimer() {
+  stopPomodoroTrayTimer();
+  pomodoroInterval = setInterval(() => {
+    const active = tracker?.getDatabase().getActivePomodoro();
+    if (!active) {
+      stopPomodoroTrayTimer();
+      return;
+    }
+    const elapsed = Date.now() - active.start_time;
+    const remaining = Math.max(0, active.duration - elapsed);
+    if (remaining <= 0) {
+      stopPomodoroTrayTimer();
+      return;
+    }
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    const timeStr = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    // Show countdown next to the tray icon (macOS shows title inline,
+    // Windows/Linux show it in the tooltip)
+    tray?.setTitle(timeStr);
+    tray?.setToolTip(`Pomodoro: ${timeStr} remaining`);
+  }, 1000);
+}
+
+function stopPomodoroTrayTimer() {
+  if (pomodoroInterval) {
+    clearInterval(pomodoroInterval);
+    pomodoroInterval = null;
+  }
+  tray?.setTitle("");
+  tray?.setToolTip("Activity Tracker");
 }
 
 // IPC Handlers - expose tracker data to the renderer process
@@ -235,12 +303,10 @@ ipcMain.handle("tracker:getSessions", (_event, startTime: number, endTime: numbe
 // Pause/resume tracking
 ipcMain.handle("tracker:pause", () => {
   tracker?.pause();
-  updateTrayMenu();
 });
 
 ipcMain.handle("tracker:resume", () => {
   tracker?.resume();
-  updateTrayMenu();
 });
 
 // Category queries
@@ -352,15 +418,19 @@ ipcMain.handle("tracker:createManualEntry", (_event, entry: {
 
 // Pomodoro
 ipcMain.handle("tracker:startPomodoro", (_event, type: string, duration: number, label?: string) => {
-  return tracker?.getDatabase().startPomodoro(type as "work" | "short_break" | "long_break", duration, label) ?? 0;
+  const id = tracker?.getDatabase().startPomodoro(type as "work" | "short_break" | "long_break", duration, label) ?? 0;
+  if (id) startPomodoroTrayTimer();
+  return id;
 });
 
 ipcMain.handle("tracker:completePomodoro", (_event, pomodoroId: number) => {
   tracker?.getDatabase().completePomodoro(pomodoroId);
+  stopPomodoroTrayTimer();
 });
 
 ipcMain.handle("tracker:abandonPomodoro", (_event, pomodoroId: number) => {
   tracker?.getDatabase().abandonPomodoro(pomodoroId);
+  stopPomodoroTrayTimer();
 });
 
 ipcMain.handle("tracker:getPomodoros", (_event, startTime: number, endTime: number) => {
@@ -403,6 +473,11 @@ ipcMain.handle("updater:downloadUpdate", () => downloadUpdate());
 ipcMain.handle("updater:installUpdate", () => installUpdate());
 ipcMain.handle("updater:getVersion", () => app.getVersion());
 
+// Shell
+ipcMain.handle("shell:openExternal", (_event, url: string) => {
+  shell.openExternal(url);
+});
+
 // Logger IPC handlers
 ipcMain.handle("logger:getLogPath", () => {
   const file = log.transports.file.getFile();
@@ -432,6 +507,7 @@ app.on("activate", () => {
 // Final cleanup before app exits to flush pending database writes
 app.on("before-quit", () => {
   isQuitting = true;
+  stopPomodoroTrayTimer();
   if (tracker) {
     tracker.shutdown();
   }

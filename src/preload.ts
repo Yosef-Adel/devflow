@@ -347,4 +347,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getLogPath: (): Promise<string | null> =>
       ipcRenderer.invoke("logger:getLogPath"),
   },
+
+  // Shell
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke("shell:openExternal", url),
 });
