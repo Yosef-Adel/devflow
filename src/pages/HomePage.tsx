@@ -49,6 +49,7 @@ export function HomePage() {
 
   const [hourlyPattern, setHourlyPattern] = useState<HourlyPattern[]>([]);
   const [domainUsage, setDomainUsage] = useState<DomainUsage[]>([]);
+  const [shortsTime, setShortsTime] = useState<{ total_duration: number; count: number }>({ total_duration: 0, count: 0 });
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
 
   const elapsedTime = useElapsedTime(status?.trackingSince ?? null);
@@ -124,6 +125,7 @@ export function HomePage() {
     dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
     window.electronAPI.getHourlyPattern(dateRange.start, dateRange.end).then(setHourlyPattern);
     window.electronAPI.getDomainUsage(dateRange.start, dateRange.end).then(setDomainUsage);
+    window.electronAPI.getShortsTime(dateRange.start, dateRange.end).then(setShortsTime);
 
     const unsubscribe = window.electronAPI.onActivityChanged((activity) => {
       dispatch(setCurrentActivity(activity));
@@ -133,6 +135,7 @@ export function HomePage() {
       dispatch(fetchSessions({ start: dateRange.start, end: Date.now() }));
       window.electronAPI.getHourlyPattern(dateRange.start, Date.now()).then(setHourlyPattern);
       window.electronAPI.getDomainUsage(dateRange.start, Date.now()).then(setDomainUsage);
+      window.electronAPI.getShortsTime(dateRange.start, Date.now()).then(setShortsTime);
     });
 
     return () => unsubscribe();
@@ -410,6 +413,26 @@ export function HomePage() {
               )}
             </div>
           </Card>
+
+          {/* Shorts / Reels Insight */}
+          {shortsTime.total_duration > 0 && (
+            <Card>
+              <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-3">Short-form Video</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-error/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-semibold text-white">{formatDuration(shortsTime.total_duration)}</p>
+                  <p className="text-[11px] text-grey-500">
+                    {shortsTime.count} short{shortsTime.count !== 1 ? "s" : ""} watched on YouTube
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Top Apps */}
           <Card>

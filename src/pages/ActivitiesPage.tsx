@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Card, RecategorizeModal, AssignProjectModal } from "../components";
+import { Card, RecategorizeModal, AssignProjectModal, ManualEntryModal } from "../components";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { fetchSessions, setDateRangeToday, setDateRangeWeek, setCurrentActivity } from "../store/slices";
 import { formatDuration, formatTime } from "../utils/time";
@@ -12,6 +12,9 @@ export function ActivitiesPage() {
   const [viewMode, setViewMode] = useState<"today" | "week">("today");
   const [recategorizeSession, setRecategorizeSession] = useState<SessionWithActivities | null>(null);
   const [assignProjectSession, setAssignProjectSession] = useState<SessionWithActivities | null>(null);
+  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+  const [deletingActivityId, setDeletingActivityId] = useState<number | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
 
   const toggleSession = (sessionId: number) => {
     setExpandedSessions((prev) => {
@@ -80,12 +83,38 @@ export function ActivitiesPage() {
     dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
   };
 
+  const handleManualEntrySave = () => {
+    setShowManualEntryModal(false);
+    dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
+  };
+
+  const handleDeleteActivity = async (activityId: number) => {
+    await window.electronAPI.deleteActivity(activityId);
+    setDeletingActivityId(null);
+    dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
+  };
+
+  const handleDeleteSession = async (sessionId: number) => {
+    await window.electronAPI.deleteSession(sessionId);
+    setDeletingSessionId(null);
+    dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
+  };
+
   return (
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-white">Activities</h2>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowManualEntryModal(true)}
+            className="px-4 py-1.5 text-sm rounded-md bg-primary hover:bg-primary-dark text-white transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add Entry
+          </button>
           <button
             onClick={() => setViewMode("today")}
             className={`px-4 py-1.5 text-sm rounded-md transition-all ${
@@ -149,6 +178,11 @@ export function ActivitiesPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-white text-sm">{session.app_name}</span>
+                            {session.is_manual === 1 && (
+                              <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded bg-purple/20 text-purple">
+                                Manual
+                              </span>
+                            )}
                             <span
                               className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded"
                               style={{
@@ -182,13 +216,51 @@ export function ActivitiesPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
                               </svg>
                             </button>
+                            {deletingSessionId === session.id ? (
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => handleDeleteSession(session.id)}
+                                  className="p-1 rounded hover:bg-error/20 transition-all text-error"
+                                  title="Confirm delete session"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setDeletingSessionId(null)}
+                                  className="p-1 rounded hover:bg-white/10 transition-all text-grey-500"
+                                  title="Cancel"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingSessionId(session.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/10 transition-all"
+                                title="Delete session"
+                              >
+                                <svg className="w-3 h-3 text-grey-500 hover:text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                              </button>
+                            )}
                             {hasMultipleActivities && (
                               <span className="px-2 py-0.5 text-[10px] rounded bg-white/5 text-grey-400">
                                 {session.activity_count} items
                               </span>
                             )}
                           </div>
-                          {!isExpanded && session.activities.length > 0 && (
+                          {session.notes && (
+                            <p className="text-xs text-grey-400 italic truncate">{session.notes}</p>
+                          )}
+                          {!isExpanded && session.activities.length > 0 && !session.notes && (
                             <p className="text-xs text-grey-500 truncate">
                               {session.activities[0].window_title}
                               {hasMultipleActivities && (
@@ -227,7 +299,7 @@ export function ActivitiesPage() {
                             {session.activities.map((activity, index) => (
                               <div
                                 key={activity.id}
-                                className="flex items-center gap-4 py-2 pl-4 rounded hover:bg-white/[0.02] transition-all duration-300"
+                                className="group/activity flex items-center gap-4 py-2 pl-4 rounded hover:bg-white/[0.02] transition-all duration-300"
                                 style={{
                                   opacity: isExpanded ? 1 : 0,
                                   transform: isExpanded ? "translateY(0)" : "translateY(-10px)",
@@ -253,6 +325,38 @@ export function ActivitiesPage() {
                                   <p>{formatTime(activity.start_time)}</p>
                                   <p className="text-grey-400">{formatDuration(activity.duration)}</p>
                                 </div>
+                                {deletingActivityId === activity.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleDeleteActivity(activity.id)}
+                                      className="p-1 rounded hover:bg-error/20 transition-all text-error text-xs"
+                                      title="Confirm delete"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => setDeletingActivityId(null)}
+                                      className="p-1 rounded hover:bg-white/10 transition-all text-grey-500 text-xs"
+                                      title="Cancel"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeletingActivityId(activity.id)}
+                                    className="opacity-0 group-hover/activity:opacity-100 p-1 rounded hover:bg-error/10 transition-all"
+                                    title="Delete activity"
+                                  >
+                                    <svg className="w-3 h-3 text-grey-500 hover:text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -282,6 +386,14 @@ export function ActivitiesPage() {
           session={assignProjectSession}
           onClose={() => setAssignProjectSession(null)}
           onSave={handleProjectSave}
+        />
+      )}
+
+      {/* Manual Entry Modal */}
+      {showManualEntryModal && (
+        <ManualEntryModal
+          onClose={() => setShowManualEntryModal(false)}
+          onSave={handleManualEntrySave}
         />
       )}
     </div>
