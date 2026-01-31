@@ -30,6 +30,18 @@ export const projects = sqliteTable("projects", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Pomodoro sessions table - tracks pomodoro timer intervals
+export const pomodoroSessions = sqliteTable("pomodoro_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type").notNull(), // "work" | "short_break" | "long_break"
+  startTime: integer("start_time").notNull(),
+  endTime: integer("end_time"),
+  duration: integer("duration").notNull(), // target duration in ms
+  completed: integer("completed").notNull().default(0),
+  label: text("label"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Sessions table - groups consecutive activities by app
 export const sessions = sqliteTable("sessions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -40,6 +52,8 @@ export const sessions = sqliteTable("sessions", {
   endTime: integer("end_time").notNull(),
   totalDuration: integer("total_duration").notNull().default(0),
   activityCount: integer("activity_count").notNull().default(0),
+  isManual: integer("is_manual").notNull().default(0),
+  notes: text("notes"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -60,6 +74,7 @@ export const activities = sqliteTable("activities", {
   endTime: integer("end_time").notNull(),
   duration: integer("duration").notNull(),
   contextJson: text("context_json"),
+  pomodoroId: integer("pomodoro_id").references(() => pomodoroSessions.id),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -74,3 +89,5 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type PomodoroSessionRow = typeof pomodoroSessions.$inferSelect;
+export type NewPomodoroSessionRow = typeof pomodoroSessions.$inferInsert;

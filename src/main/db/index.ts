@@ -5,7 +5,7 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 6; // Bump this to force a DB reset + re-seed
+const DB_VERSION = 7; // Bump this to force a DB reset + re-seed
 
 // Rule definition with optional matchMode (defaults to "contains")
 interface RuleDef {
@@ -287,6 +287,7 @@ function createDatabase() {
     sqlite.exec("DROP TABLE IF EXISTS category_rules");
     sqlite.exec("DROP TABLE IF EXISTS activities");
     sqlite.exec("DROP TABLE IF EXISTS sessions");
+    sqlite.exec("DROP TABLE IF EXISTS pomodoro_sessions");
     sqlite.exec("DROP TABLE IF EXISTS projects");
     sqlite.exec("DROP TABLE IF EXISTS categories");
 
@@ -323,6 +324,18 @@ function createDatabase() {
     )
   `);
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      start_time INTEGER NOT NULL,
+      end_time INTEGER,
+      duration INTEGER NOT NULL,
+      completed INTEGER NOT NULL DEFAULT 0,
+      label TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       app_name TEXT NOT NULL,
@@ -332,6 +345,8 @@ function createDatabase() {
       end_time INTEGER NOT NULL,
       total_duration INTEGER NOT NULL DEFAULT 0,
       activity_count INTEGER NOT NULL DEFAULT 0,
+      is_manual INTEGER NOT NULL DEFAULT 0,
+      notes TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -352,6 +367,7 @@ function createDatabase() {
       end_time INTEGER NOT NULL,
       duration INTEGER NOT NULL,
       context_json TEXT,
+      pomodoro_id INTEGER REFERENCES pomodoro_sessions(id),
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -365,6 +381,7 @@ function createDatabase() {
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(start_time)");
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)");
   sqlite.exec("CREATE INDEX IF NOT EXISTS idx_category_rules_cat ON category_rules(category_id)");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS idx_pomodoro_start ON pomodoro_sessions(start_time)");
 
   const db = drizzle(sqlite, { schema });
 

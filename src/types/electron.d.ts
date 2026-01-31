@@ -38,6 +38,24 @@ export interface ProjectInfo {
   color: string;
 }
 
+export interface PomodoroRecord {
+  id: number;
+  type: string;
+  start_time: number;
+  end_time: number | null;
+  duration: number;
+  completed: number;
+  label: string | null;
+}
+
+export interface ActivePomodoro {
+  id: number;
+  type: string;
+  start_time: number;
+  duration: number;
+  label: string | null;
+}
+
 export interface ProjectTime {
   project_id: number;
   project_name: string;
@@ -96,6 +114,8 @@ export interface SessionRecord {
   end_time: number;
   total_duration: number;
   activity_count: number;
+  is_manual: number;
+  notes: string | null;
   created_at: string | null;
 }
 
@@ -182,6 +202,31 @@ export interface ElectronAPI {
   deleteProject: (id: number) => Promise<void>;
   assignSessionToProject: (sessionId: number, projectId: number) => Promise<void>;
   unassignSessionFromProject: (sessionId: number) => Promise<void>;
+  getShortsTime: (startTime: number, endTime: number) => Promise<{ total_duration: number; count: number }>;
+
+  // Delete activity / session / pomodoro
+  deleteActivity: (activityId: number) => Promise<void>;
+  deleteSession: (sessionId: number) => Promise<void>;
+  deletePomodoro: (pomodoroId: number) => Promise<void>;
+
+  // Manual entries
+  createManualEntry: (entry: {
+    app_name: string;
+    category_id: number;
+    start_time: number;
+    end_time: number;
+    notes?: string;
+    window_title?: string;
+  }) => Promise<number>;
+
+  // Pomodoro
+  startPomodoro: (type: string, duration: number, label?: string) => Promise<number>;
+  completePomodoro: (pomodoroId: number) => Promise<void>;
+  abandonPomodoro: (pomodoroId: number) => Promise<void>;
+  getPomodoros: (startTime: number, endTime: number) => Promise<PomodoroRecord[]>;
+  getActivitiesForPomodoro: (pomodoroId: number) => Promise<ActivityRecord[]>;
+  tagActivitiesWithPomodoro: (pomodoroId: number, activityIds: number[]) => Promise<void>;
+  getActivePomodoro: () => Promise<ActivePomodoro | null>;
 
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => () => void;

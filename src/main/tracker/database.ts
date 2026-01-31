@@ -1,5 +1,5 @@
-import { gte, lte, and, sql, desc, isNotNull, eq, like, inArray } from "drizzle-orm";
-import { getDb, activities, sessions, categories, projects, type Activity, type Session } from "../db";
+import { gte, lte, and, sql, desc, isNotNull, eq, like, inArray, isNull } from "drizzle-orm";
+import { getDb, activities, sessions, categories, projects, pomodoroSessions, type Activity, type Session } from "../db";
 
 // Re-export types for external use
 export type { Activity, Session };
@@ -35,6 +35,8 @@ export interface SessionRecord {
   end_time: number;
   total_duration: number;
   activity_count: number;
+  is_manual: number;
+  notes: string | null;
   created_at: string | null;
 }
 
@@ -383,6 +385,27 @@ class ActivityDatabase {
     }>;
   }
 
+  // Get YouTube Shorts time
+  getShortsTime(startTime: number, endTime: number): { total_duration: number; count: number } {
+    const result = this.db
+      .select({
+        total_duration: sql<number>`coalesce(sum(${activities.duration}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(activities)
+      .where(
+        and(
+          gte(activities.startTime, startTime),
+          lte(activities.startTime, endTime),
+          like(activities.domain, "%youtube.com"),
+          like(activities.url, "%/shorts/%"),
+        )
+      )
+      .get();
+
+    return { total_duration: result?.total_duration ?? 0, count: result?.count ?? 0 };
+  }
+
   // Get domain usage
   getDomainUsage(
     startTime: number,
@@ -501,6 +524,8 @@ class ActivityDatabase {
         endTime: sessions.endTime,
         totalDuration: sessions.totalDuration,
         activityCount: sessions.activityCount,
+        isManual: sessions.isManual,
+        notes: sessions.notes,
         createdAt: sessions.createdAt,
       })
       .from(sessions)
@@ -588,6 +613,8 @@ class ActivityDatabase {
       end_time: session.endTime,
       total_duration: session.totalDuration,
       activity_count: session.activityCount,
+      is_manual: session.isManual,
+      notes: session.notes,
       created_at: session.createdAt,
       activities: activitiesBySession.get(session.id) || [],
     }));
@@ -721,6 +748,262 @@ class ActivityDatabase {
       .set({ projectId: null })
       .where(eq(sessions.id, sessionId))
       .run();
+  }
+
+  // --- Delete Activity ---
+
+  deleteActivity(activityId: number): void {
+    const activity = this.db
+      .select({ sessionId: activities.sessionId, duration: activities.duration })
+      .from(activities)
+      .where(eq(activities.id, activityId))
+      .get();
+
+    if (!activity) return;
+
+    // Delete the activity
+    this.db.delete(activities).where(eq(activities.id, activityId)).run();
+
+    if (!activity.sessionId) return;
+
+    // Update parent session totals
+    this.db
+      .update(sessions)
+      .set({
+        totalDuration: sql`${sessions.totalDuration} - ${activity.duration}`,
+        activityCount: sql`${sessions.activityCount} - 1`,
+      })
+      .where(eq(sessions.id, activity.sessionId))
+      .run();
+
+    // If no activities remain, delete the session
+    const remaining = this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(activities)
+      .where(eq(activities.sessionId, activity.sessionId))
+      .get();
+
+    if (remaining && remaining.count === 0) {
+      this.db.delete(sessions).where(eq(sessions.id, activity.sessionId)).run();
+    }
+  }
+
+  // Delete an entire session and all its activities
+  deleteSession(sessionId: number): void {
+    this.db.delete(activities).where(eq(activities.sessionId, sessionId)).run();
+    this.db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+  }
+
+  // Delete a pomodoro record and untag its activities
+  deletePomodoro(pomodoroId: number): void {
+    // Untag activities that were linked to this pomodoro
+    this.db
+      .update(activities)
+      .set({ pomodoroId: null })
+      .where(eq(activities.pomodoroId, pomodoroId))
+      .run();
+    this.db.delete(pomodoroSessions).where(eq(pomodoroSessions.id, pomodoroId)).run();
+  }
+
+  // --- Manual Time Entry ---
+
+  createManualEntry(entry: {
+    app_name: string;
+    category_id: number;
+    start_time: number;
+    end_time: number;
+    notes?: string;
+    window_title?: string;
+  }): number {
+    const duration = entry.end_time - entry.start_time;
+
+    const sessionResult = this.db
+      .insert(sessions)
+      .values({
+        appName: entry.app_name,
+        categoryId: entry.category_id,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        totalDuration: duration,
+        activityCount: 1,
+        isManual: 1,
+        notes: entry.notes || null,
+      })
+      .returning({ id: sessions.id })
+      .get();
+
+    const sessionId = sessionResult?.id ?? 0;
+
+    this.db
+      .insert(activities)
+      .values({
+        sessionId,
+        appName: entry.app_name,
+        windowTitle: entry.window_title || entry.app_name,
+        categoryId: entry.category_id,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        duration,
+      })
+      .run();
+
+    return sessionId;
+  }
+
+  // --- Pomodoro CRUD ---
+
+  startPomodoro(type: "work" | "short_break" | "long_break", duration: number, label?: string): number {
+    const result = this.db
+      .insert(pomodoroSessions)
+      .values({
+        type,
+        startTime: Date.now(),
+        duration,
+        completed: 0,
+        label: label || null,
+      })
+      .returning({ id: pomodoroSessions.id })
+      .get();
+
+    return result?.id ?? 0;
+  }
+
+  completePomodoro(pomodoroId: number): void {
+    this.db
+      .update(pomodoroSessions)
+      .set({ endTime: Date.now(), completed: 1 })
+      .where(eq(pomodoroSessions.id, pomodoroId))
+      .run();
+  }
+
+  abandonPomodoro(pomodoroId: number): void {
+    this.db
+      .update(pomodoroSessions)
+      .set({ endTime: Date.now(), completed: 0 })
+      .where(eq(pomodoroSessions.id, pomodoroId))
+      .run();
+  }
+
+  getPomodorosInRange(startTime: number, endTime: number): Array<{
+    id: number; type: string; start_time: number; end_time: number | null;
+    duration: number; completed: number; label: string | null;
+  }> {
+    const results = this.db
+      .select({
+        id: pomodoroSessions.id,
+        type: pomodoroSessions.type,
+        startTime: pomodoroSessions.startTime,
+        endTime: pomodoroSessions.endTime,
+        duration: pomodoroSessions.duration,
+        completed: pomodoroSessions.completed,
+        label: pomodoroSessions.label,
+      })
+      .from(pomodoroSessions)
+      .where(
+        and(
+          gte(pomodoroSessions.startTime, startTime),
+          lte(pomodoroSessions.startTime, endTime),
+        )
+      )
+      .orderBy(desc(pomodoroSessions.startTime))
+      .all();
+
+    return results.map((r) => ({
+      id: r.id,
+      type: r.type,
+      start_time: r.startTime,
+      end_time: r.endTime,
+      duration: r.duration,
+      completed: r.completed,
+      label: r.label,
+    }));
+  }
+
+  getActivitiesForPomodoro(pomodoroId: number): ActivityRecord[] {
+    const results = this.db
+      .select({
+        id: activities.id,
+        sessionId: activities.sessionId,
+        appName: activities.appName,
+        windowTitle: activities.windowTitle,
+        url: activities.url,
+        categoryId: activities.categoryId,
+        categoryName: categories.name,
+        categoryColor: categories.color,
+        projectName: activities.projectName,
+        fileName: activities.fileName,
+        fileType: activities.fileType,
+        language: activities.language,
+        domain: activities.domain,
+        startTime: activities.startTime,
+        endTime: activities.endTime,
+        duration: activities.duration,
+        contextJson: activities.contextJson,
+        createdAt: activities.createdAt,
+      })
+      .from(activities)
+      .leftJoin(categories, eq(activities.categoryId, categories.id))
+      .where(eq(activities.pomodoroId, pomodoroId))
+      .orderBy(desc(activities.startTime))
+      .all();
+
+    return results.map((row) => ({
+      id: row.id,
+      session_id: row.sessionId,
+      app_name: row.appName,
+      window_title: row.windowTitle,
+      url: row.url,
+      category_id: row.categoryId,
+      category_name: row.categoryName,
+      category_color: row.categoryColor,
+      project_name: row.projectName,
+      file_name: row.fileName,
+      file_type: row.fileType,
+      language: row.language,
+      domain: row.domain,
+      start_time: row.startTime,
+      end_time: row.endTime,
+      duration: row.duration,
+      context_json: row.contextJson,
+      created_at: row.createdAt,
+    }));
+  }
+
+  tagActivitiesWithPomodoro(pomodoroId: number, activityIds: number[]): void {
+    if (activityIds.length === 0) return;
+    this.db
+      .update(activities)
+      .set({ pomodoroId })
+      .where(inArray(activities.id, activityIds))
+      .run();
+  }
+
+  getActivePomodoro(): {
+    id: number; type: string; start_time: number; duration: number; label: string | null;
+  } | null {
+    const result = this.db
+      .select({
+        id: pomodoroSessions.id,
+        type: pomodoroSessions.type,
+        startTime: pomodoroSessions.startTime,
+        duration: pomodoroSessions.duration,
+        label: pomodoroSessions.label,
+      })
+      .from(pomodoroSessions)
+      .where(isNull(pomodoroSessions.endTime))
+      .orderBy(desc(pomodoroSessions.startTime))
+      .limit(1)
+      .get();
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      type: result.type,
+      start_time: result.startTime,
+      duration: result.duration,
+      label: result.label,
+    };
   }
 
   // Close is not needed with Drizzle, but keep for API compatibility

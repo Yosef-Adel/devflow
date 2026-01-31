@@ -40,6 +40,24 @@ export interface ProjectTime {
   session_count: number;
 }
 
+export interface PomodoroRecord {
+  id: number;
+  type: string;
+  start_time: number;
+  end_time: number | null;
+  duration: number;
+  completed: number;
+  label: string | null;
+}
+
+export interface ActivePomodoro {
+  id: number;
+  type: string;
+  start_time: number;
+  duration: number;
+  label: string | null;
+}
+
 export interface DomainUsage {
   domain: string;
   total_duration: number;
@@ -227,6 +245,52 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   unassignSessionFromProject: (sessionId: number): Promise<void> =>
     ipcRenderer.invoke("tracker:unassignSessionFromProject", sessionId),
+
+  getShortsTime: (startTime: number, endTime: number): Promise<{ total_duration: number; count: number }> =>
+    ipcRenderer.invoke("tracker:getShortsTime", startTime, endTime),
+
+  // Delete activity / session / pomodoro
+  deleteActivity: (activityId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:deleteActivity", activityId),
+
+  deleteSession: (sessionId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:deleteSession", sessionId),
+
+  deletePomodoro: (pomodoroId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:deletePomodoro", pomodoroId),
+
+  // Manual entries
+  createManualEntry: (entry: {
+    app_name: string;
+    category_id: number;
+    start_time: number;
+    end_time: number;
+    notes?: string;
+    window_title?: string;
+  }): Promise<number> =>
+    ipcRenderer.invoke("tracker:createManualEntry", entry),
+
+  // Pomodoro
+  startPomodoro: (type: string, duration: number, label?: string): Promise<number> =>
+    ipcRenderer.invoke("tracker:startPomodoro", type, duration, label),
+
+  completePomodoro: (pomodoroId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:completePomodoro", pomodoroId),
+
+  abandonPomodoro: (pomodoroId: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:abandonPomodoro", pomodoroId),
+
+  getPomodoros: (startTime: number, endTime: number): Promise<PomodoroRecord[]> =>
+    ipcRenderer.invoke("tracker:getPomodoros", startTime, endTime),
+
+  getActivitiesForPomodoro: (pomodoroId: number): Promise<ActivityRecord[]> =>
+    ipcRenderer.invoke("tracker:getActivitiesForPomodoro", pomodoroId),
+
+  tagActivitiesWithPomodoro: (pomodoroId: number, activityIds: number[]): Promise<void> =>
+    ipcRenderer.invoke("tracker:tagActivitiesWithPomodoro", pomodoroId, activityIds),
+
+  getActivePomodoro: (): Promise<ActivePomodoro | null> =>
+    ipcRenderer.invoke("tracker:getActivePomodoro"),
 
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => {

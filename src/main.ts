@@ -321,6 +321,64 @@ ipcMain.handle("tracker:unassignSessionFromProject", (_event, sessionId: number)
   tracker?.getDatabase().unassignSessionFromProject(sessionId);
 });
 
+ipcMain.handle("tracker:getShortsTime", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getShortsTime(startTime, endTime) ?? { total_duration: 0, count: 0 };
+});
+
+// Delete activity / session / pomodoro
+ipcMain.handle("tracker:deleteActivity", (_event, activityId: number) => {
+  tracker?.getDatabase().deleteActivity(activityId);
+});
+
+ipcMain.handle("tracker:deleteSession", (_event, sessionId: number) => {
+  tracker?.getDatabase().deleteSession(sessionId);
+});
+
+ipcMain.handle("tracker:deletePomodoro", (_event, pomodoroId: number) => {
+  tracker?.getDatabase().deletePomodoro(pomodoroId);
+});
+
+// Manual time entry
+ipcMain.handle("tracker:createManualEntry", (_event, entry: {
+  app_name: string;
+  category_id: number;
+  start_time: number;
+  end_time: number;
+  notes?: string;
+  window_title?: string;
+}) => {
+  return tracker?.getDatabase().createManualEntry(entry) ?? 0;
+});
+
+// Pomodoro
+ipcMain.handle("tracker:startPomodoro", (_event, type: string, duration: number, label?: string) => {
+  return tracker?.getDatabase().startPomodoro(type as "work" | "short_break" | "long_break", duration, label) ?? 0;
+});
+
+ipcMain.handle("tracker:completePomodoro", (_event, pomodoroId: number) => {
+  tracker?.getDatabase().completePomodoro(pomodoroId);
+});
+
+ipcMain.handle("tracker:abandonPomodoro", (_event, pomodoroId: number) => {
+  tracker?.getDatabase().abandonPomodoro(pomodoroId);
+});
+
+ipcMain.handle("tracker:getPomodoros", (_event, startTime: number, endTime: number) => {
+  return tracker?.getDatabase().getPomodorosInRange(startTime, endTime) ?? [];
+});
+
+ipcMain.handle("tracker:getActivitiesForPomodoro", (_event, pomodoroId: number) => {
+  return tracker?.getDatabase().getActivitiesForPomodoro(pomodoroId) ?? [];
+});
+
+ipcMain.handle("tracker:tagActivitiesWithPomodoro", (_event, pomodoroId: number, activityIds: number[]) => {
+  tracker?.getDatabase().tagActivitiesWithPomodoro(pomodoroId, activityIds);
+});
+
+ipcMain.handle("tracker:getActivePomodoro", () => {
+  return tracker?.getDatabase().getActivePomodoro() ?? null;
+});
+
 // Permissions IPC handlers
 ipcMain.handle("permissions:getStatus", () => {
   return getPermissionsStatus();
