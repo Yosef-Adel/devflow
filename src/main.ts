@@ -387,6 +387,22 @@ ipcMain.handle("tracker:unassignSessionFromProject", (_event, sessionId: number)
   tracker?.getDatabase().unassignSessionFromProject(sessionId);
 });
 
+// Excluded apps
+ipcMain.handle("tracker:getExcludedApps", () => {
+  return tracker?.getDatabase().getExcludedApps() ?? [];
+});
+
+ipcMain.handle("tracker:addExcludedApp", (_event, appName: string) => {
+  const result = tracker?.getDatabase().addExcludedApp(appName) ?? { id: 0 };
+  tracker?.reloadExcludedApps();
+  return result;
+});
+
+ipcMain.handle("tracker:removeExcludedApp", (_event, id: number) => {
+  tracker?.getDatabase().removeExcludedApp(id);
+  tracker?.reloadExcludedApps();
+});
+
 ipcMain.handle("tracker:getShortsTime", (_event, startTime: number, endTime: number) => {
   return tracker?.getDatabase().getShortsTime(startTime, endTime) ?? { total_duration: 0, count: 0 };
 });

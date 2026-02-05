@@ -142,6 +142,11 @@ export interface CategoryRule {
   pattern: string;
 }
 
+export interface ExcludedApp {
+  id: number;
+  app_name: string;
+}
+
 export interface PermissionsStatus {
   platform: "darwin" | "other";
   accessibility: boolean;
@@ -208,6 +213,11 @@ export interface ElectronAPI {
   deleteProject: (id: number) => Promise<void>;
   assignSessionToProject: (sessionId: number, projectId: number) => Promise<void>;
   unassignSessionFromProject: (sessionId: number) => Promise<void>;
+  // Excluded apps
+  getExcludedApps: () => Promise<ExcludedApp[]>;
+  addExcludedApp: (appName: string) => Promise<{ id: number }>;
+  removeExcludedApp: (id: number) => Promise<void>;
+
   getShortsTime: (startTime: number, endTime: number) => Promise<{ total_duration: number; count: number }>;
 
   // Delete activity / session / pomodoro

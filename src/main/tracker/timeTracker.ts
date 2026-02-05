@@ -44,6 +44,7 @@ class TimeTracker {
   private idleThresholdSeconds = 120; // 2 minutes of inactivity = idle
 
   private recentCategoryIds: number[] = [];
+  private excludedAppsSet: Set<string> = new Set();
   private onActivityChange?: (activity: CurrentActivity | null) => void;
 
   constructor() {
@@ -67,6 +68,7 @@ class TimeTracker {
     }
 
     this.isRunning = true;
+    this.loadExcludedApps();
 
     this.trackingInterval = setInterval(async () => {
       await this.track();
@@ -115,13 +117,19 @@ class TimeTracker {
       return;
     }
 
+    const title = window.title;
+
     // Skip tracking the app itself and system UI processes
     const EXCLUDED_APPS = [
       "Electron", "Activity Tracker", "activity-tracker",
       "Dock", "SystemUIServer", "Control Center",
       "Notification Center", "UserNotificationCenter",
     ];
-    if (EXCLUDED_APPS.includes(appName)) {
+    const isBuiltInExcluded = EXCLUDED_APPS.includes(appName);
+    const isWindowsTaskbar = appName === "Windows Explorer" && (!title || title === "Taskbar");
+    const isUserExcluded = this.excludedAppsSet.has(appName);
+
+    if (isBuiltInExcluded || isWindowsTaskbar || isUserExcluded) {
       if (this.currentActivity) {
         this.saveCurrentActivity();
         this.currentActivity = null;
@@ -133,7 +141,6 @@ class TimeTracker {
       return;
     }
 
-    const title = window.title;
     const url = ("url" in window ? window.url : null) || null;
 
     const context = this.contextExtractor.extract(appName, title, url);
@@ -320,6 +327,15 @@ class TimeTracker {
 
   reloadCategories(): void {
     this.categorizer.reloadRules();
+  }
+
+  reloadExcludedApps(): void {
+    this.loadExcludedApps();
+  }
+
+  private loadExcludedApps(): void {
+    const rows = this.db.getExcludedApps();
+    this.excludedAppsSet = new Set(rows.map((r) => r.app_name));
   }
 
   getStatus(): TrackerStatus {

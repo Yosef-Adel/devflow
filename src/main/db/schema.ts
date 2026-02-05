@@ -82,6 +82,13 @@ export const activities = sqliteTable("activities", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Excluded apps table - user-configurable app exclusion list
+export const excludedApps = sqliteTable("excluded_apps", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  appName: text("app_name").notNull().unique(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 // TypeScript types inferred from schema
 export type CategoryRow = typeof categories.$inferSelect;
 export type NewCategoryRow = typeof categories.$inferInsert;
@@ -95,3 +102,5 @@ export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
 export type PomodoroSessionRow = typeof pomodoroSessions.$inferSelect;
 export type NewPomodoroSessionRow = typeof pomodoroSessions.$inferInsert;
+export type ExcludedAppRow = typeof excludedApps.$inferSelect;
+export type NewExcludedAppRow = typeof excludedApps.$inferInsert;

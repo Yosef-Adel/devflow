@@ -5,7 +5,7 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 10;
+const DB_VERSION = 11;
 
 // Incremental migrations keyed by target version.
 // Each function receives the raw sqlite instance and runs ALTER/CREATE statements.
@@ -33,6 +33,15 @@ const MIGRATIONS: Record<number, (sqlite: Database) => void> = {
   10: (sqlite) => {
     sqlite.exec("ALTER TABLE pomodoro_sessions ADD COLUMN category_id INTEGER REFERENCES categories(id)");
     sqlite.exec("ALTER TABLE pomodoro_sessions ADD COLUMN notes TEXT");
+  },
+  11: (sqlite) => {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS excluded_apps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        app_name TEXT NOT NULL UNIQUE,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   },
 };
 
@@ -420,6 +429,14 @@ function createDatabase() {
       duration INTEGER NOT NULL,
       context_json TEXT,
       pomodoro_id INTEGER REFERENCES pomodoro_sessions(id),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS excluded_apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app_name TEXT NOT NULL UNIQUE,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);

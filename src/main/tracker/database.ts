@@ -1,5 +1,5 @@
 import { gte, lte, and, sql, desc, isNotNull, eq, like, inArray, isNull } from "drizzle-orm";
-import { getDb, activities, sessions, categories, projects, pomodoroSessions, type Activity, type Session } from "../db";
+import { getDb, activities, sessions, categories, projects, pomodoroSessions, excludedApps, type Activity, type Session } from "../db";
 
 // Re-export types for external use
 export type { Activity, Session };
@@ -1017,6 +1017,29 @@ class ActivityDatabase {
       category_id: result.categoryId,
       notes: result.notes,
     };
+  }
+
+  // --- Excluded Apps CRUD ---
+
+  getExcludedApps(): Array<{ id: number; app_name: string }> {
+    return this.db
+      .select({ id: excludedApps.id, app_name: excludedApps.appName })
+      .from(excludedApps)
+      .orderBy(excludedApps.appName)
+      .all();
+  }
+
+  addExcludedApp(appName: string): { id: number } {
+    const result = this.db
+      .insert(excludedApps)
+      .values({ appName })
+      .returning({ id: excludedApps.id })
+      .get();
+    return { id: result?.id ?? 0 };
+  }
+
+  removeExcludedApp(id: number): void {
+    this.db.delete(excludedApps).where(eq(excludedApps.id, id)).run();
   }
 
   // Close is not needed with Drizzle, but keep for API compatibility

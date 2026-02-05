@@ -252,6 +252,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   unassignSessionFromProject: (sessionId: number): Promise<void> =>
     ipcRenderer.invoke("tracker:unassignSessionFromProject", sessionId),
 
+  // Excluded apps
+  getExcludedApps: (): Promise<Array<{ id: number; app_name: string }>> =>
+    ipcRenderer.invoke("tracker:getExcludedApps"),
+
+  addExcludedApp: (appName: string): Promise<{ id: number }> =>
+    ipcRenderer.invoke("tracker:addExcludedApp", appName),
+
+  removeExcludedApp: (id: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:removeExcludedApp", id),
+
   getShortsTime: (startTime: number, endTime: number): Promise<{ total_duration: number; count: number }> =>
     ipcRenderer.invoke("tracker:getShortsTime", startTime, endTime),
 
