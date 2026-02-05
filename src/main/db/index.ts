@@ -278,7 +278,8 @@ const DEFAULT_CATEGORIES: Array<{
 ];
 
 function createDatabase() {
-  const dbPath = path.join(app.getPath("userData"), "activity-tracker.db");
+  const dbName = app.isPackaged ? "activity-tracker.db" : "activity-tracker-dev.db";
+  const dbPath = path.join(app.getPath("userData"), dbName);
   const sqlite = new Database(dbPath);
 
   // Enable WAL mode for better performance
