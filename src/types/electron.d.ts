@@ -270,6 +270,10 @@ export interface ElectronAPI {
     getLogPath(): Promise<string | null>;
   };
 
+  // Launch at startup
+  getLoginItemSettings: () => Promise<{ openAtLogin: boolean }>;
+  setLoginItemSettings: (openAtLogin: boolean) => Promise<void>;
+
   // Shell
   openExternal(url: string): Promise<void>;
 }

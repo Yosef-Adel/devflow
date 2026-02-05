@@ -196,6 +196,20 @@ export function SettingsPage() {
   const [isAddingExcluded, setIsAddingExcluded] = useState(false);
   const [newExcludedName, setNewExcludedName] = useState("");
 
+  // Launch at startup state
+  const [launchAtStartup, setLaunchAtStartup] = useState(false);
+
+  const fetchLoginItemSettings = async () => {
+    const settings = await window.electronAPI.getLoginItemSettings();
+    setLaunchAtStartup(settings.openAtLogin);
+  };
+
+  const handleToggleLaunchAtStartup = async () => {
+    const newValue = !launchAtStartup;
+    await window.electronAPI.setLoginItemSettings(newValue);
+    setLaunchAtStartup(newValue);
+  };
+
   const fetchExcludedApps = async () => {
     const apps = await window.electronAPI.getExcludedApps();
     setExcludedApps(apps);
@@ -229,6 +243,7 @@ export function SettingsPage() {
     fetchCategories();
     fetchProjects();
     fetchExcludedApps();
+    fetchLoginItemSettings();
     window.electronAPI.updater.getVersion().then(setAppVersion);
   }, []);
 
@@ -332,14 +347,36 @@ export function SettingsPage() {
       <h2 className="text-xl font-semibold text-white mb-6">Settings</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {/* General Settings - Coming Soon */}
-        <Card className="relative">
-          <ComingSoonOverlay />
+        {/* General Settings */}
+        <Card>
           <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">
             General
           </p>
           <div className="space-y-4">
+            {/* Launch at Startup — functional */}
             <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-white">
+                  Launch at Startup
+                </p>
+                <p className="text-xs text-grey-500">Start when you log in</p>
+              </div>
+              <button
+                onClick={handleToggleLaunchAtStartup}
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  launchAtStartup ? "bg-primary" : "bg-grey-700"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+                    launchAtStartup ? "left-6" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Enable Tracking — greyed out */}
+            <div className="flex items-center justify-between py-2 border-t border-white/[0.06] opacity-40 pointer-events-none">
               <div>
                 <p className="text-sm font-medium text-white">
                   Enable Tracking
@@ -348,31 +385,26 @@ export function SettingsPage() {
                   Automatically track your activities
                 </p>
               </div>
-              <button className="relative w-11 h-6 rounded-full bg-primary">
-                <div className="absolute top-1 left-6 w-4 h-4 bg-white rounded-full" />
-              </button>
+              <div className="flex items-center gap-2">
+                <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-white/5 text-grey-500 rounded-full">Coming Soon</span>
+                <button className="relative w-11 h-6 rounded-full bg-primary">
+                  <div className="absolute top-1 left-6 w-4 h-4 bg-white rounded-full" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
+            {/* Idle Timeout — greyed out */}
+            <div className="flex items-center justify-between py-2 border-t border-white/[0.06] opacity-40 pointer-events-none">
               <div>
                 <p className="text-sm font-medium text-white">Idle Timeout</p>
                 <p className="text-xs text-grey-500">Minutes before pausing</p>
               </div>
-              <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white">
-                <option value={2}>2 minutes</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
-              <div>
-                <p className="text-sm font-medium text-white">
-                  Launch at Startup
-                </p>
-                <p className="text-xs text-grey-500">Start when you log in</p>
+              <div className="flex items-center gap-2">
+                <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-white/5 text-grey-500 rounded-full">Coming Soon</span>
+                <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white">
+                  <option value={2}>2 minutes</option>
+                </select>
               </div>
-              <button className="relative w-11 h-6 rounded-full bg-grey-700">
-                <div className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full" />
-              </button>
             </div>
           </div>
         </Card>

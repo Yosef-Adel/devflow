@@ -494,6 +494,15 @@ ipcMain.handle("updater:downloadUpdate", () => downloadUpdate());
 ipcMain.handle("updater:installUpdate", () => installUpdate());
 ipcMain.handle("updater:getVersion", () => app.getVersion());
 
+// Launch at startup
+ipcMain.handle("app:getLoginItemSettings", () => {
+  return app.getLoginItemSettings();
+});
+
+ipcMain.handle("app:setLoginItemSettings", (_event, openAtLogin: boolean) => {
+  app.setLoginItemSettings({ openAtLogin });
+});
+
 // Shell
 ipcMain.handle("shell:openExternal", (_event, url: string) => {
   shell.openExternal(url);
