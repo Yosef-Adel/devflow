@@ -5,11 +5,13 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 // Incremental migrations keyed by target version.
 // Each function receives the raw sqlite instance and runs ALTER/CREATE statements.
 const PASSIVE_CATEGORIES = ["entertainment", "communication", "research", "content_creation"];
+const PRODUCTIVE_CATEGORIES = ["development", "system_admin", "knowledge_work", "documentation", "design"];
+const DISTRACTION_CATEGORIES = ["social", "entertainment"];
 
 const MIGRATIONS: Record<number, (sqlite: Database) => void> = {
   8: (sqlite) => {
@@ -17,6 +19,15 @@ const MIGRATIONS: Record<number, (sqlite: Database) => void> = {
     // Mark categories that involve passive content consumption
     for (const name of PASSIVE_CATEGORIES) {
       sqlite.exec(`UPDATE categories SET is_passive = 1 WHERE name = '${name}'`);
+    }
+  },
+  9: (sqlite) => {
+    sqlite.exec("ALTER TABLE categories ADD COLUMN productivity_type TEXT NOT NULL DEFAULT 'neutral'");
+    for (const name of PRODUCTIVE_CATEGORIES) {
+      sqlite.exec(`UPDATE categories SET productivity_type = 'productive' WHERE name = '${name}'`);
+    }
+    for (const name of DISTRACTION_CATEGORIES) {
+      sqlite.exec(`UPDATE categories SET productivity_type = 'distraction' WHERE name = '${name}'`);
     }
   },
 };
@@ -33,6 +44,7 @@ const DEFAULT_CATEGORIES: Array<{
   color: string;
   priority: number;
   isPassive?: boolean;
+  productivityType?: "productive" | "neutral" | "distraction";
   rules: {
     apps: (string | RuleDef)[];
     domains: (string | RuleDef)[];
@@ -45,6 +57,7 @@ const DEFAULT_CATEGORIES: Array<{
     name: "development",
     color: "#6366F1",
     priority: 10,
+    productivityType: "productive",
     rules: {
       apps: [
         "Code", "Visual Studio Code", "VS Code", "WebStorm", "IntelliJ",
@@ -92,6 +105,7 @@ const DEFAULT_CATEGORIES: Array<{
     name: "system_admin",
     color: "#10B981",
     priority: 9,
+    productivityType: "productive",
     rules: {
       apps: [],
       domains: [
@@ -137,6 +151,7 @@ const DEFAULT_CATEGORIES: Array<{
     name: "social",
     color: "#EAB308",
     priority: 4,
+    productivityType: "distraction",
     rules: {
       apps: ["Twitter", "Facebook", "TweetDeck"],
       domains: [
@@ -153,6 +168,7 @@ const DEFAULT_CATEGORIES: Array<{
     color: "#EF4444",
     priority: 4,
     isPassive: true,
+    productivityType: "distraction",
     rules: {
       apps: [
         "Spotify", "Apple Music",
@@ -231,6 +247,7 @@ const DEFAULT_CATEGORIES: Array<{
     name: "knowledge_work",
     color: "#A855F7",
     priority: 9,
+    productivityType: "productive",
     rules: {
       apps: ["Obsidian", "Notion", "Logseq", "Roam"],
       domains: ["notion.so", "obsidian.md"],
@@ -244,6 +261,7 @@ const DEFAULT_CATEGORIES: Array<{
     name: "documentation",
     color: "#8B5CF6",
     priority: 8,
+    productivityType: "productive",
     rules: {
       apps: [
         "Microsoft Word", "Pages", "Google Docs",
@@ -272,6 +290,7 @@ const DEFAULT_CATEGORIES: Array<{
     name: "design",
     color: "#F97316",
     priority: 10,
+    productivityType: "productive",
     rules: {
       apps: [
         "Figma", "Sketch", "Adobe Photoshop", "Adobe Illustrator",
@@ -329,6 +348,7 @@ function createDatabase() {
       is_default INTEGER NOT NULL DEFAULT 1,
       priority INTEGER NOT NULL DEFAULT 0,
       is_passive INTEGER NOT NULL DEFAULT 0,
+      productivity_type TEXT NOT NULL DEFAULT 'neutral',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -431,6 +451,7 @@ function seedDatabase(db: ReturnType<typeof drizzle>) {
         isDefault: 1,
         priority: cat.priority,
         isPassive: cat.isPassive ? 1 : 0,
+        productivityType: cat.productivityType ?? "neutral",
       })
       .returning({ id: categories.id })
       .get();

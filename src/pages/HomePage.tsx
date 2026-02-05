@@ -11,7 +11,7 @@ import {
   setDateRangeWeek,
 } from "../store/slices";
 import { formatDuration, getPercentage } from "../utils/time";
-import type { HourlyPattern, DomainUsage } from "../types/electron";
+import type { HourlyPattern, DomainUsage, CategoryInfo } from "../types/electron";
 
 // Hook for live elapsed time
 function useElapsedTime(startTime: number | null) {
@@ -32,8 +32,6 @@ function useElapsedTime(startTime: number | null) {
   return elapsed;
 }
 
-const PRODUCTIVE_CATEGORIES = ["development", "productivity", "research", "design"];
-
 export function HomePage() {
   const dispatch = useAppDispatch();
   const {
@@ -50,14 +48,22 @@ export function HomePage() {
   const [hourlyPattern, setHourlyPattern] = useState<HourlyPattern[]>([]);
   const [domainUsage, setDomainUsage] = useState<DomainUsage[]>([]);
   const [shortsTime, setShortsTime] = useState<{ total_duration: number; count: number }>({ total_duration: 0, count: 0 });
+  const [categoryList, setCategoryList] = useState<CategoryInfo[]>([]);
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
+
+  // Build a lookup set of productive category names from user settings
+  const productiveCategoryNames = useMemo(() => {
+    const set = new Set<string>();
+    categoryList.forEach((c) => { if (c.productivityType === "productive") set.add(c.name); });
+    return set;
+  }, [categoryList]);
 
   const elapsedTime = useElapsedTime(status?.trackingSince ?? null);
 
   // Calculate scores
   const scores = useMemo(() => {
     const productiveTime = categoryBreakdown
-      .filter((c) => PRODUCTIVE_CATEGORIES.includes(c.category_name))
+      .filter((c) => productiveCategoryNames.has(c.category_name))
       .reduce((sum, c) => sum + c.total_duration, 0);
 
     const meetingTime = categoryBreakdown
@@ -73,7 +79,7 @@ export function HomePage() {
       meetings: meetingPercent,
       meetingTime: meetingTime,
     };
-  }, [categoryBreakdown, totalTime]);
+  }, [categoryBreakdown, totalTime, productiveCategoryNames]);
 
   // Timeline data (hourly blocks)
   const timelineData = useMemo(() => {
@@ -126,6 +132,7 @@ export function HomePage() {
     window.electronAPI.getHourlyPattern(dateRange.start, dateRange.end).then(setHourlyPattern);
     window.electronAPI.getDomainUsage(dateRange.start, dateRange.end).then(setDomainUsage);
     window.electronAPI.getShortsTime(dateRange.start, dateRange.end).then(setShortsTime);
+    window.electronAPI.getCategories().then(setCategoryList);
 
     const unsubscribe = window.electronAPI.onActivityChanged((activity) => {
       dispatch(setCurrentActivity(activity));

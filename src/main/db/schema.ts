@@ -9,6 +9,7 @@ export const categories = sqliteTable("categories", {
   isDefault: integer("is_default").notNull().default(1),
   priority: integer("priority").notNull().default(0),
   isPassive: integer("is_passive").notNull().default(0),
+  productivityType: text("productivity_type").notNull().default("neutral"), // "productive" | "neutral" | "distraction"
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 

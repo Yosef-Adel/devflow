@@ -15,6 +15,8 @@ export interface CategorizationResult {
   matchedRules: string[];
 }
 
+export type ProductivityType = "productive" | "neutral" | "distraction";
+
 export interface CategoryInfo {
   id: number;
   name: string;
@@ -22,6 +24,7 @@ export interface CategoryInfo {
   isDefault: boolean;
   priority: number;
   isPassive: boolean;
+  productivityType: ProductivityType;
 }
 
 type MatchMode = "exact" | "contains" | "regex";
@@ -39,6 +42,7 @@ interface CachedCategory {
   isDefault: boolean;
   priority: number;
   isPassive: boolean;
+  productivityType: ProductivityType;
   apps: CachedRule[];
   domains: CachedRule[];
   keywords: CachedRule[];
@@ -130,6 +134,7 @@ class ActivityCategorizer {
         isDefault: cat.isDefault === 1,
         priority: cat.priority,
         isPassive: cat.isPassive === 1,
+        productivityType: (cat.productivityType as ProductivityType) || "neutral",
         apps: rules.apps,
         domains: rules.domains,
         keywords: rules.keywords,
@@ -378,6 +383,7 @@ class ActivityCategorizer {
       isDefault: c.isDefault,
       priority: c.priority,
       isPassive: c.isPassive,
+      productivityType: c.productivityType,
     }));
   }
 
@@ -396,7 +402,7 @@ class ActivityCategorizer {
 
   updateCategory(
     id: number,
-    updates: { name?: string; color?: string; priority?: number; isPassive?: boolean },
+    updates: { name?: string; color?: string; priority?: number; isPassive?: boolean; productivityType?: ProductivityType },
   ): void {
     const db = getDb();
     const setValues: Record<string, string | number> = {};
@@ -404,6 +410,7 @@ class ActivityCategorizer {
     if (updates.color !== undefined) setValues.color = updates.color;
     if (updates.priority !== undefined) setValues.priority = updates.priority;
     if (updates.isPassive !== undefined) setValues.isPassive = updates.isPassive ? 1 : 0;
+    if (updates.productivityType !== undefined) setValues.productivityType = updates.productivityType;
     if (Object.keys(setValues).length === 0) return;
 
     db.update(categories).set(setValues).where(eq(categories.id, id)).run();

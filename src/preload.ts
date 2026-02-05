@@ -121,6 +121,7 @@ export interface CategoryInfo {
   color: string;
   isDefault: boolean;
   isPassive: boolean;
+  productivityType: "productive" | "neutral" | "distraction";
 }
 
 export interface CategoryRule {
@@ -203,8 +204,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   createCategory: (name: string, color: string): Promise<{ id: number }> =>
     ipcRenderer.invoke("tracker:createCategory", name, color),
 
-  updateCategory: (id: number, name?: string, color?: string, isPassive?: boolean): Promise<void> =>
-    ipcRenderer.invoke("tracker:updateCategory", id, name, color, isPassive),
+  updateCategory: (id: number, name?: string, color?: string, isPassive?: boolean, productivityType?: string): Promise<void> =>
+    ipcRenderer.invoke("tracker:updateCategory", id, name, color, isPassive, productivityType),
 
   deleteCategory: (id: number): Promise<void> =>
     ipcRenderer.invoke("tracker:deleteCategory", id),

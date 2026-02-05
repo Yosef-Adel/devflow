@@ -129,6 +129,7 @@ export interface CategoryInfo {
   color: string;
   isDefault: boolean;
   isPassive: boolean;
+  productivityType: "productive" | "neutral" | "distraction";
 }
 
 export interface CategoryRule {
@@ -183,7 +184,7 @@ export interface ElectronAPI {
   // Category CRUD
   getCategories: () => Promise<CategoryInfo[]>;
   createCategory: (name: string, color: string) => Promise<{ id: number }>;
-  updateCategory: (id: number, name?: string, color?: string, isPassive?: boolean) => Promise<void>;
+  updateCategory: (id: number, name?: string, color?: string, isPassive?: boolean, productivityType?: string) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
 
   // Category rules CRUD

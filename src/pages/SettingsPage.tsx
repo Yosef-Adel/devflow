@@ -212,6 +212,12 @@ export function SettingsPage() {
     await fetchCategories();
   };
 
+  const handleProductivityChange = async (id: number, type: "productive" | "neutral" | "distraction") => {
+    await window.electronAPI.updateCategory(id, undefined, undefined, undefined, type);
+    await window.electronAPI.reloadCategories();
+    await fetchCategories();
+  };
+
   const handleDelete = async (id: number) => {
     await window.electronAPI.deleteCategory(id);
     await window.electronAPI.reloadCategories();
@@ -434,6 +440,16 @@ export function SettingsPage() {
                             style={{ backgroundColor: cat.color }}
                           />
                           <span className="text-sm text-white truncate">{cat.name.replace(/_/g, " ")}</span>
+                          {cat.productivityType === "productive" && (
+                            <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-success/10 text-success rounded-full">
+                              productive
+                            </span>
+                          )}
+                          {cat.productivityType === "distraction" && (
+                            <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-error/10 text-error rounded-full">
+                              distraction
+                            </span>
+                          )}
                           {cat.isPassive && (
                             <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-info/10 text-info rounded-full">
                               passive
@@ -493,24 +509,54 @@ export function SettingsPage() {
                       {/* Expanded rules section */}
                       {isExpanded && (
                         <div className="pb-3 pl-9">
-                          {/* Passive content toggle */}
-                          <div className="flex items-center justify-between py-2 mb-2 border-b border-white/[0.04]">
-                            <div>
-                              <p className="text-xs text-grey-300">Passive content</p>
-                              <p className="text-[10px] text-grey-600">Skip idle detection (video, calls, music)</p>
+                          {/* Category settings */}
+                          <div className="space-y-2 mb-3 pb-3 border-b border-white/[0.04]">
+                            {/* Productivity type */}
+                            <div className="flex items-center justify-between py-1.5">
+                              <div>
+                                <p className="text-xs text-grey-300">Productivity type</p>
+                                <p className="text-[10px] text-grey-600">Used for focus score and reports</p>
+                              </div>
+                              <div className="flex rounded-lg overflow-hidden border border-white/10">
+                                {(["productive", "neutral", "distraction"] as const).map((type) => (
+                                  <button
+                                    key={type}
+                                    onClick={() => handleProductivityChange(cat.id, type)}
+                                    className={`px-2.5 py-1 text-[10px] capitalize transition-all ${
+                                      cat.productivityType === type
+                                        ? type === "productive"
+                                          ? "bg-success/20 text-success"
+                                          : type === "distraction"
+                                            ? "bg-error/20 text-error"
+                                            : "bg-white/10 text-white"
+                                        : "text-grey-600 hover:text-grey-400"
+                                    }`}
+                                  >
+                                    {type}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                            <button
-                              onClick={() => handleTogglePassive(cat.id, cat.isPassive)}
-                              className={`relative w-9 h-5 rounded-full transition-colors ${
-                                cat.isPassive ? "bg-info" : "bg-grey-700"
-                              }`}
-                            >
-                              <div
-                                className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${
-                                  cat.isPassive ? "left-[18px]" : "left-0.5"
+
+                            {/* Passive content toggle */}
+                            <div className="flex items-center justify-between py-1.5">
+                              <div>
+                                <p className="text-xs text-grey-300">Passive content</p>
+                                <p className="text-[10px] text-grey-600">Skip idle detection (video, calls, music)</p>
+                              </div>
+                              <button
+                                onClick={() => handleTogglePassive(cat.id, cat.isPassive)}
+                                className={`relative w-9 h-5 rounded-full transition-colors ${
+                                  cat.isPassive ? "bg-info" : "bg-grey-700"
                                 }`}
-                              />
-                            </button>
+                              >
+                                <div
+                                  className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${
+                                    cat.isPassive ? "left-[18px]" : "left-0.5"
+                                  }`}
+                                />
+                              </button>
+                            </div>
                           </div>
 
                           {rules.length === 0 ? (

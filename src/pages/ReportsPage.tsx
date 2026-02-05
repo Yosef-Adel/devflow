@@ -9,10 +9,7 @@ import {
   setCurrentActivity,
 } from "../store/slices";
 import { formatDuration, getPercentage } from "../utils/time";
-import type { DailyTotal, HourlyPattern, CategoryBreakdown } from "../types/electron";
-
-const PRODUCTIVE_CATEGORIES = ["development", "productivity", "research", "design"];
-const NEUTRAL_CATEGORIES = ["communication", "email"];
+import type { DailyTotal, HourlyPattern, CategoryBreakdown, CategoryInfo } from "../types/electron";
 
 interface Insights {
   focusScore: number;
@@ -29,21 +26,22 @@ function calculateInsights(
   categoryBreakdown: CategoryBreakdown[],
   dailyTotals: DailyTotal[],
   hourlyPattern: HourlyPattern[],
-  totalTime: number
+  totalTime: number,
+  categorySettings: Map<string, CategoryInfo>,
 ): Insights {
   const productiveTime = categoryBreakdown
-    .filter((c) => PRODUCTIVE_CATEGORIES.includes(c.category_name))
+    .filter((c) => categorySettings.get(c.category_name)?.productivityType === "productive")
     .reduce((sum, c) => sum + c.total_duration, 0);
 
   const distractedTime = categoryBreakdown
-    .filter((c) => !PRODUCTIVE_CATEGORIES.includes(c.category_name) && !NEUTRAL_CATEGORIES.includes(c.category_name))
+    .filter((c) => categorySettings.get(c.category_name)?.productivityType === "distraction")
     .reduce((sum, c) => sum + c.total_duration, 0);
 
   const focusScore = totalTime > 0 ? Math.round((productiveTime / totalTime) * 100) : 0;
 
   const hourlyProductivity = new Map<number, number>();
   hourlyPattern.forEach((h) => {
-    if (PRODUCTIVE_CATEGORIES.includes(h.category_name)) {
+    if (categorySettings.get(h.category_name)?.productivityType === "productive") {
       const hourNum = parseInt(h.hour);
       // Only consider work hours (6 AM - 11 PM)
       if (hourNum >= 6 && hourNum <= 23) {
@@ -106,8 +104,16 @@ export function ReportsPage() {
   );
   const [dailyTotals, setDailyTotals] = useState<DailyTotal[]>([]);
   const [hourlyPattern, setHourlyPattern] = useState<HourlyPattern[]>([]);
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "details">("overview");
   const [dateMode, setDateMode] = useState<"week" | "month">("week");
+
+  // Build a lookup map from category name → settings (productivityType etc.)
+  const categorySettings = useMemo(() => {
+    const map = new Map<string, CategoryInfo>();
+    categories.forEach((c) => map.set(c.name, c));
+    return map;
+  }, [categories]);
 
   useEffect(() => {
     if (dateMode === "week") {
@@ -121,6 +127,7 @@ export function ReportsPage() {
     dispatch(fetchDashboardData({ start: dateRange.start, end: dateRange.end }));
     window.electronAPI.getDailyTotals(30).then(setDailyTotals);
     window.electronAPI.getHourlyPattern(dateRange.start, dateRange.end).then(setHourlyPattern);
+    window.electronAPI.getCategories().then(setCategories);
 
     const unsubscribe = window.electronAPI.onActivityChanged((activity) => {
       dispatch(setCurrentActivity(activity));
@@ -133,8 +140,8 @@ export function ReportsPage() {
   }, [dispatch, dateRange]);
 
   const insights = useMemo(
-    () => calculateInsights(categoryBreakdown, dailyTotals, hourlyPattern, totalTime),
-    [categoryBreakdown, dailyTotals, hourlyPattern, totalTime]
+    () => calculateInsights(categoryBreakdown, dailyTotals, hourlyPattern, totalTime, categorySettings),
+    [categoryBreakdown, dailyTotals, hourlyPattern, totalTime, categorySettings]
   );
 
   const heatmapData = useMemo(() => {
@@ -485,12 +492,12 @@ export function ReportsPage() {
                         <td className="py-3 text-grey-400">{getPercentage(cat.total_duration, totalTime)}%</td>
                         <td className="py-3 text-grey-400">{cat.session_count}</td>
                         <td className="py-3">
-                          {PRODUCTIVE_CATEGORIES.includes(cat.category_name) ? (
+                          {categorySettings.get(cat.category_name)?.productivityType === "productive" ? (
                             <span className="text-success text-xs">Productive</span>
-                          ) : NEUTRAL_CATEGORIES.includes(cat.category_name) ? (
-                            <span className="text-grey-500 text-xs">Neutral</span>
-                          ) : (
+                          ) : categorySettings.get(cat.category_name)?.productivityType === "distraction" ? (
                             <span className="text-error text-xs">Distracting</span>
+                          ) : (
+                            <span className="text-grey-500 text-xs">Neutral</span>
                           )}
                         </td>
                       </tr>
