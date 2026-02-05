@@ -292,7 +292,7 @@ class ActivityDatabase {
     }));
   }
 
-  // Get app usage aggregated by app name
+  // Get app usage aggregated by app name (excludes manual entries)
   getAppUsage(
     startTime: number,
     endTime: number
@@ -304,10 +304,12 @@ class ActivityDatabase {
         session_count: sql<number>`count(*)`,
       })
       .from(activities)
+      .leftJoin(sessions, eq(activities.sessionId, sessions.id))
       .where(
         and(
           gte(activities.startTime, startTime),
-          lte(activities.startTime, endTime)
+          lte(activities.startTime, endTime),
+          sql`coalesce(${sessions.isManual}, 0) = 0`
         )
       )
       .groupBy(activities.appName)
@@ -852,7 +854,7 @@ class ActivityDatabase {
 
   // --- Pomodoro CRUD ---
 
-  startPomodoro(type: "work" | "short_break" | "long_break", duration: number, label?: string): number {
+  startPomodoro(type: "work" | "short_break" | "long_break", duration: number, label?: string, categoryId?: number, notes?: string): number {
     const result = this.db
       .insert(pomodoroSessions)
       .values({
@@ -861,6 +863,8 @@ class ActivityDatabase {
         duration,
         completed: 0,
         label: label || null,
+        categoryId: categoryId || null,
+        notes: notes || null,
       })
       .returning({ id: pomodoroSessions.id })
       .get();
@@ -887,6 +891,7 @@ class ActivityDatabase {
   getPomodorosInRange(startTime: number, endTime: number): Array<{
     id: number; type: string; start_time: number; end_time: number | null;
     duration: number; completed: number; label: string | null;
+    category_id: number | null; notes: string | null;
   }> {
     const results = this.db
       .select({
@@ -897,6 +902,8 @@ class ActivityDatabase {
         duration: pomodoroSessions.duration,
         completed: pomodoroSessions.completed,
         label: pomodoroSessions.label,
+        categoryId: pomodoroSessions.categoryId,
+        notes: pomodoroSessions.notes,
       })
       .from(pomodoroSessions)
       .where(
@@ -916,6 +923,8 @@ class ActivityDatabase {
       duration: r.duration,
       completed: r.completed,
       label: r.label,
+      category_id: r.categoryId,
+      notes: r.notes,
     }));
   }
 
@@ -979,7 +988,7 @@ class ActivityDatabase {
   }
 
   getActivePomodoro(): {
-    id: number; type: string; start_time: number; duration: number; label: string | null;
+    id: number; type: string; start_time: number; duration: number; label: string | null; category_id: number | null; notes: string | null;
   } | null {
     const result = this.db
       .select({
@@ -988,6 +997,8 @@ class ActivityDatabase {
         startTime: pomodoroSessions.startTime,
         duration: pomodoroSessions.duration,
         label: pomodoroSessions.label,
+        categoryId: pomodoroSessions.categoryId,
+        notes: pomodoroSessions.notes,
       })
       .from(pomodoroSessions)
       .where(isNull(pomodoroSessions.endTime))
@@ -1003,6 +1014,8 @@ class ActivityDatabase {
       start_time: result.startTime,
       duration: result.duration,
       label: result.label,
+      category_id: result.categoryId,
+      notes: result.notes,
     };
   }
 

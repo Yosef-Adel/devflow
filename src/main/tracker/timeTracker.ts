@@ -310,6 +310,14 @@ class TimeTracker {
     }
   }
 
+  /** Flush the current in-progress activity to the database without stopping tracking. */
+  flush(): void {
+    if (!this.currentActivity || !this.activityStartTime) return;
+    this.saveCurrentActivity();
+    // Restart the timer for the same activity so tracking continues seamlessly
+    this.activityStartTime = Date.now();
+  }
+
   reloadCategories(): void {
     this.categorizer.reloadRules();
   }

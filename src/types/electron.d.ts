@@ -46,6 +46,8 @@ export interface PomodoroRecord {
   duration: number;
   completed: number;
   label: string | null;
+  category_id: number | null;
+  notes: string | null;
 }
 
 export interface ActivePomodoro {
@@ -54,6 +56,8 @@ export interface ActivePomodoro {
   start_time: number;
   duration: number;
   label: string | null;
+  category_id: number | null;
+  notes: string | null;
 }
 
 export interface ProjectTime {
@@ -222,13 +226,14 @@ export interface ElectronAPI {
   }) => Promise<number>;
 
   // Pomodoro
-  startPomodoro: (type: string, duration: number, label?: string) => Promise<number>;
+  startPomodoro: (type: string, duration: number, label?: string, categoryId?: number, notes?: string) => Promise<number>;
   completePomodoro: (pomodoroId: number) => Promise<void>;
   abandonPomodoro: (pomodoroId: number) => Promise<void>;
   getPomodoros: (startTime: number, endTime: number) => Promise<PomodoroRecord[]>;
   getActivitiesForPomodoro: (pomodoroId: number) => Promise<ActivityRecord[]>;
   tagActivitiesWithPomodoro: (pomodoroId: number, activityIds: number[]) => Promise<void>;
   getActivePomodoro: () => Promise<ActivePomodoro | null>;
+  flushActivities: () => Promise<void>;
 
   // Activity change listener
   onActivityChanged: (callback: (activity: CurrentActivity | null) => void) => () => void;

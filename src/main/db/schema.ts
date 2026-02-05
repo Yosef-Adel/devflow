@@ -41,6 +41,8 @@ export const pomodoroSessions = sqliteTable("pomodoro_sessions", {
   duration: integer("duration").notNull(), // target duration in ms
   completed: integer("completed").notNull().default(0),
   label: text("label"),
+  categoryId: integer("category_id").references(() => categories.id),
+  notes: text("notes"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 

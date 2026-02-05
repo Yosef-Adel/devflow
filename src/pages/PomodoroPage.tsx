@@ -105,18 +105,28 @@ export function PomodoroPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-white text-sm capitalize">{typeLabel}</span>
+                        <span className="font-medium text-white text-sm">
+                          {pomodoro.label || <span className="capitalize">{typeLabel}</span>}
+                        </span>
                         <span
                           className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded"
                           style={{
-                            backgroundColor: typeColor + "20",
-                            color: typeColor,
+                            backgroundColor: pomodoro.end_time === null
+                              ? "#0EA5E920"
+                              : pomodoro.completed
+                                ? typeColor + "20"
+                                : "#EF444420",
+                            color: pomodoro.end_time === null
+                              ? "#0EA5E9"
+                              : pomodoro.completed
+                                ? typeColor
+                                : "#EF4444",
                           }}
                         >
-                          {pomodoro.completed ? "Completed" : "Abandoned"}
+                          {pomodoro.end_time === null ? "Ongoing" : pomodoro.completed ? "Completed" : "Abandoned"}
                         </span>
                         {pomodoro.label && (
-                          <span className="text-xs text-grey-400">{pomodoro.label}</span>
+                          <span className="text-[10px] text-grey-500 capitalize">{typeLabel}</span>
                         )}
                       </div>
                       {!isExpanded && acts.length > 0 && (

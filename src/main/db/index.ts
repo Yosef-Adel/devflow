@@ -5,7 +5,7 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 // Incremental migrations keyed by target version.
 // Each function receives the raw sqlite instance and runs ALTER/CREATE statements.
@@ -29,6 +29,10 @@ const MIGRATIONS: Record<number, (sqlite: Database) => void> = {
     for (const name of DISTRACTION_CATEGORIES) {
       sqlite.exec(`UPDATE categories SET productivity_type = 'distraction' WHERE name = '${name}'`);
     }
+  },
+  10: (sqlite) => {
+    sqlite.exec("ALTER TABLE pomodoro_sessions ADD COLUMN category_id INTEGER REFERENCES categories(id)");
+    sqlite.exec("ALTER TABLE pomodoro_sessions ADD COLUMN notes TEXT");
   },
 };
 
@@ -378,6 +382,8 @@ function createDatabase() {
       duration INTEGER NOT NULL,
       completed INTEGER NOT NULL DEFAULT 0,
       label TEXT,
+      category_id INTEGER REFERENCES categories(id),
+      notes TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);

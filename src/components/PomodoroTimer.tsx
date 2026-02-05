@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import type { ActivePomodoro } from "../types/electron";
+import type { ActivePomodoro, CategoryInfo } from "../types/electron";
 
 interface PomodoroTimerProps {
   onComplete: () => void;
@@ -11,6 +11,9 @@ export function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [customMinutes, setCustomMinutes] = useState("25");
   const [label, setLabel] = useState("");
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [mode, setMode] = useState<"work" | "break">("work");
   const completingRef = useRef(false);
 
@@ -27,6 +30,7 @@ export function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
 
   useEffect(() => {
     loadActivePomodoro();
+    window.electronAPI.getCategories().then(setCategories);
   }, [loadActivePomodoro]);
 
   const handleComplete = useCallback(async () => {
@@ -36,11 +40,31 @@ export function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
     try {
       const pomodoroStart = activePomodoro.start_time;
       const pomodoroEnd = Date.now();
+      // Flush the tracker's in-progress activity to DB so it gets counted below
+      await window.electronAPI.flushActivities();
       const allActivities = await window.electronAPI.getActivities(pomodoroStart, pomodoroEnd);
       const activityIds = allActivities.map((a) => a.id);
 
       if (activityIds.length > 0) {
         await window.electronAPI.tagActivitiesWithPomodoro(activePomodoro.id, activityIds);
+      }
+
+      // If the pomodoro has a label but no activities were tracked (offline work),
+      // auto-create a manual activity entry covering the full pomodoro duration
+      if (activePomodoro.label && activityIds.length === 0) {
+        const allCategories = await window.electronAPI.getCategories();
+        const fallbackCategory = allCategories.find((c) => c.name === "uncategorized");
+        const entryCategory = activePomodoro.category_id || fallbackCategory?.id;
+        if (entryCategory) {
+          await window.electronAPI.createManualEntry({
+            app_name: activePomodoro.label,
+            category_id: entryCategory,
+            start_time: pomodoroStart,
+            end_time: pomodoroEnd,
+            window_title: activePomodoro.label,
+            notes: activePomodoro.notes || undefined,
+          });
+        }
       }
 
       await window.electronAPI.completePomodoro(activePomodoro.id);
@@ -77,11 +101,15 @@ export function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
     const type = mode === "work" ? "work" : "short_break";
     const duration = mins * 60 * 1000;
     const pomodoroLabel = label.trim() || undefined;
+    const pomodoroCategoryId = categoryId || undefined;
+    const pomodoroNotes = notes.trim() || undefined;
 
     setIsStarting(true);
     try {
-      await window.electronAPI.startPomodoro(type, duration, pomodoroLabel);
+      await window.electronAPI.startPomodoro(type, duration, pomodoroLabel, pomodoroCategoryId, pomodoroNotes);
       setLabel("");
+      setCategoryId(null);
+      setNotes("");
       await loadActivePomodoro();
     } finally {
       setIsStarting(false);
@@ -223,7 +251,7 @@ export function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
       </div>
 
       {/* Label input */}
-      <div className="mb-6">
+      <div className="mb-4">
         <input
           type="text"
           placeholder="What are you working on?"
@@ -231,6 +259,41 @@ export function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
           onChange={(e) => setLabel(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleStart(); }}
           className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-white placeholder:text-grey-600 focus:outline-none focus:border-primary/50 transition-all"
+        />
+      </div>
+
+      {/* Category picker */}
+      <div className="mb-4">
+        <label className="block text-[10px] uppercase tracking-wider text-grey-500 mb-2">Category (optional)</label>
+        <div className="flex flex-wrap gap-1.5">
+          {categories.filter((c) => c.name !== "uncategorized").map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setCategoryId(categoryId === cat.id ? null : cat.id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+                categoryId === cat.id
+                  ? "bg-white/10 ring-1 ring-white/20 text-white"
+                  : "bg-white/[0.03] text-grey-500 hover:bg-white/[0.06] hover:text-grey-300"
+              }`}
+            >
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: cat.color }}
+              />
+              {cat.name.replace(/_/g, " ")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="mb-6">
+        <textarea
+          placeholder="Notes (optional)"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-white placeholder:text-grey-600 focus:outline-none focus:border-primary/50 transition-all resize-none"
         />
       </div>
 

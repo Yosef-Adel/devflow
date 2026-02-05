@@ -417,8 +417,8 @@ ipcMain.handle("tracker:createManualEntry", (_event, entry: {
 });
 
 // Pomodoro
-ipcMain.handle("tracker:startPomodoro", (_event, type: string, duration: number, label?: string) => {
-  const id = tracker?.getDatabase().startPomodoro(type as "work" | "short_break" | "long_break", duration, label) ?? 0;
+ipcMain.handle("tracker:startPomodoro", (_event, type: string, duration: number, label?: string, categoryId?: number, notes?: string) => {
+  const id = tracker?.getDatabase().startPomodoro(type as "work" | "short_break" | "long_break", duration, label, categoryId, notes) ?? 0;
   if (id) startPomodoroTrayTimer();
   return id;
 });
@@ -447,6 +447,11 @@ ipcMain.handle("tracker:tagActivitiesWithPomodoro", (_event, pomodoroId: number,
 
 ipcMain.handle("tracker:getActivePomodoro", () => {
   return tracker?.getDatabase().getActivePomodoro() ?? null;
+});
+
+// Flush current in-progress activity to DB without stopping tracking
+ipcMain.handle("tracker:flush", () => {
+  tracker?.flush();
 });
 
 // Permissions IPC handlers
