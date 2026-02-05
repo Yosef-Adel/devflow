@@ -5,7 +5,7 @@ import path from "path";
 import * as schema from "./schema";
 import { categories, categoryRules } from "./schema";
 
-const DB_VERSION = 11;
+const DB_VERSION = 12;
 
 // Incremental migrations keyed by target version.
 // Each function receives the raw sqlite instance and runs ALTER/CREATE statements.
@@ -40,6 +40,14 @@ const MIGRATIONS: Record<number, (sqlite: Database) => void> = {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         app_name TEXT NOT NULL UNIQUE,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  },
+  12: (sqlite) => {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
       )
     `);
   },
@@ -438,6 +446,12 @@ function createDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       app_name TEXT NOT NULL UNIQUE,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     )
   `);
 

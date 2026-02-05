@@ -270,6 +270,10 @@ export interface ElectronAPI {
     getLogPath(): Promise<string | null>;
   };
 
+  // Idle timeout
+  getIdleTimeout: () => Promise<number>;
+  setIdleTimeout: (seconds: number) => Promise<void>;
+
   // Launch at startup
   getLoginItemSettings: () => Promise<{ openAtLogin: boolean }>;
   setLoginItemSettings: (openAtLogin: boolean) => Promise<void>;

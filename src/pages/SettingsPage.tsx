@@ -210,6 +210,19 @@ export function SettingsPage() {
     setLaunchAtStartup(newValue);
   };
 
+  // Idle timeout state
+  const [idleTimeout, setIdleTimeout] = useState(120);
+
+  const fetchIdleTimeout = async () => {
+    const seconds = await window.electronAPI.getIdleTimeout();
+    setIdleTimeout(seconds);
+  };
+
+  const handleIdleTimeoutChange = async (seconds: number) => {
+    await window.electronAPI.setIdleTimeout(seconds);
+    setIdleTimeout(seconds);
+  };
+
   const fetchExcludedApps = async () => {
     const apps = await window.electronAPI.getExcludedApps();
     setExcludedApps(apps);
@@ -244,6 +257,7 @@ export function SettingsPage() {
     fetchProjects();
     fetchExcludedApps();
     fetchLoginItemSettings();
+    fetchIdleTimeout();
     window.electronAPI.updater.getVersion().then(setAppVersion);
   }, []);
 
@@ -375,36 +389,25 @@ export function SettingsPage() {
               </button>
             </div>
 
-            {/* Enable Tracking — greyed out */}
-            <div className="flex items-center justify-between py-2 border-t border-white/[0.06] opacity-40 pointer-events-none">
-              <div>
-                <p className="text-sm font-medium text-white">
-                  Enable Tracking
-                </p>
-                <p className="text-xs text-grey-500">
-                  Automatically track your activities
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-white/5 text-grey-500 rounded-full">Coming Soon</span>
-                <button className="relative w-11 h-6 rounded-full bg-primary">
-                  <div className="absolute top-1 left-6 w-4 h-4 bg-white rounded-full" />
-                </button>
-              </div>
-            </div>
-
-            {/* Idle Timeout — greyed out */}
-            <div className="flex items-center justify-between py-2 border-t border-white/[0.06] opacity-40 pointer-events-none">
+            {/* Idle Timeout — functional */}
+            <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
               <div>
                 <p className="text-sm font-medium text-white">Idle Timeout</p>
                 <p className="text-xs text-grey-500">Minutes before pausing</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-white/5 text-grey-500 rounded-full">Coming Soon</span>
-                <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white">
-                  <option value={2}>2 minutes</option>
-                </select>
-              </div>
+              <select
+                value={idleTimeout}
+                onChange={(e) => handleIdleTimeoutChange(Number(e.target.value))}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/20"
+              >
+                <option value={60}>1 minute</option>
+                <option value={120}>2 minutes</option>
+                <option value={180}>3 minutes</option>
+                <option value={300}>5 minutes</option>
+                <option value={600}>10 minutes</option>
+                <option value={900}>15 minutes</option>
+                <option value={1800}>30 minutes</option>
+              </select>
             </div>
           </div>
         </Card>

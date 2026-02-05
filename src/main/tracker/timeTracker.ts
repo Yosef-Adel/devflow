@@ -69,6 +69,7 @@ class TimeTracker {
 
     this.isRunning = true;
     this.loadExcludedApps();
+    this.loadIdleTimeout();
 
     this.trackingInterval = setInterval(async () => {
       await this.track();
@@ -336,6 +337,25 @@ class TimeTracker {
   private loadExcludedApps(): void {
     const rows = this.db.getExcludedApps();
     this.excludedAppsSet = new Set(rows.map((r) => r.app_name));
+  }
+
+  setIdleTimeout(seconds: number): void {
+    this.idleThresholdSeconds = seconds;
+    this.db.setSetting("idle_timeout_seconds", String(seconds));
+  }
+
+  getIdleTimeout(): number {
+    return this.idleThresholdSeconds;
+  }
+
+  private loadIdleTimeout(): void {
+    const value = this.db.getSetting("idle_timeout_seconds");
+    if (value !== null) {
+      const parsed = parseInt(value, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        this.idleThresholdSeconds = parsed;
+      }
+    }
   }
 
   getStatus(): TrackerStatus {

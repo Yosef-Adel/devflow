@@ -82,6 +82,12 @@ export const activities = sqliteTable("activities", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Settings table - key-value store for user preferences
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 // Excluded apps table - user-configurable app exclusion list
 export const excludedApps = sqliteTable("excluded_apps", {
   id: integer("id").primaryKey({ autoIncrement: true }),

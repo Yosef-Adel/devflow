@@ -1,5 +1,5 @@
 import { gte, lte, and, sql, desc, isNotNull, eq, like, inArray, isNull } from "drizzle-orm";
-import { getDb, activities, sessions, categories, projects, pomodoroSessions, excludedApps, type Activity, type Session } from "../db";
+import { getDb, activities, sessions, categories, projects, pomodoroSessions, excludedApps, settings, type Activity, type Session } from "../db";
 
 // Re-export types for external use
 export type { Activity, Session };
@@ -1017,6 +1017,25 @@ class ActivityDatabase {
       category_id: result.categoryId,
       notes: result.notes,
     };
+  }
+
+  // --- Settings ---
+
+  getSetting(key: string): string | null {
+    const row = this.db
+      .select({ value: settings.value })
+      .from(settings)
+      .where(eq(settings.key, key))
+      .get();
+    return row?.value ?? null;
+  }
+
+  setSetting(key: string, value: string): void {
+    this.db
+      .insert(settings)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: settings.key, set: { value } })
+      .run();
   }
 
   // --- Excluded Apps CRUD ---

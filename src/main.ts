@@ -494,6 +494,15 @@ ipcMain.handle("updater:downloadUpdate", () => downloadUpdate());
 ipcMain.handle("updater:installUpdate", () => installUpdate());
 ipcMain.handle("updater:getVersion", () => app.getVersion());
 
+// Idle timeout
+ipcMain.handle("tracker:getIdleTimeout", () => {
+  return tracker?.getIdleTimeout() ?? 120;
+});
+
+ipcMain.handle("tracker:setIdleTimeout", (_event, seconds: number) => {
+  tracker?.setIdleTimeout(seconds);
+});
+
 // Launch at startup
 ipcMain.handle("app:getLoginItemSettings", () => {
   return app.getLoginItemSettings();

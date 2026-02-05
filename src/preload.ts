@@ -367,6 +367,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("logger:getLogPath"),
   },
 
+  // Idle timeout
+  getIdleTimeout: (): Promise<number> =>
+    ipcRenderer.invoke("tracker:getIdleTimeout"),
+
+  setIdleTimeout: (seconds: number): Promise<void> =>
+    ipcRenderer.invoke("tracker:setIdleTimeout", seconds),
+
   // Launch at startup
   getLoginItemSettings: (): Promise<{ openAtLogin: boolean }> =>
     ipcRenderer.invoke("app:getLoginItemSettings"),
