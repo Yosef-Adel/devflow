@@ -14,6 +14,7 @@ import {
   downloadUpdate,
   installUpdate,
 } from "./main/updater";
+import { NotificationManager } from "./main/notifications";
 
 // Initialize logging before anything else
 initLogger();
@@ -26,6 +27,7 @@ if (started) {
 let mainWindow: BrowserWindow | null = null;
 let tracker: TimeTracker | null = null;
 let tray: Tray | null = null;
+let notificationManager: NotificationManager | null = null;
 let isQuitting = false;
 let pomodoroInterval: ReturnType<typeof setInterval> | null = null;
 let lastActivityLabel = "No activity";
@@ -194,15 +196,21 @@ async function initializeTracker() {
     if (activity) {
       lastActivityLabel = `${activity.appName} — ${activity.categoryName}`;
       tray?.setToolTip(`Activity Tracker — ${activity.appName}`);
+      notificationManager?.onActivityStarted();
+      notificationManager?.checkGoals();
     } else {
       lastActivityLabel = "Idle";
       tray?.setToolTip("Activity Tracker — Idle");
+      notificationManager?.onIdle();
     }
   });
 
   try {
     await tracker.start();
     log.info("Tracker started successfully");
+
+    // Initialize notification manager after tracker is ready
+    notificationManager = new NotificationManager(tracker.getDatabase());
 
     // Resume pomodoro tray timer if one is active
     const activePomodoro = tracker.getDatabase().getActivePomodoro();
@@ -303,6 +311,7 @@ ipcMain.handle("tracker:getSessions", (_event, startTime: number, endTime: numbe
 // Pause/resume tracking
 ipcMain.handle("tracker:pause", () => {
   tracker?.pause();
+  notificationManager?.onPaused();
 });
 
 ipcMain.handle("tracker:resume", () => {
@@ -512,6 +521,15 @@ ipcMain.handle("app:setLoginItemSettings", (_event, openAtLogin: boolean) => {
   app.setLoginItemSettings({ openAtLogin });
 });
 
+// Generic settings
+ipcMain.handle("tracker:getSetting", (_event, key: string) => {
+  return tracker?.getDatabase().getSetting(key) ?? null;
+});
+
+ipcMain.handle("tracker:setSetting", (_event, key: string, value: string) => {
+  tracker?.getDatabase().setSetting(key, value);
+});
+
 // Shell
 ipcMain.handle("shell:openExternal", (_event, url: string) => {
   shell.openExternal(url);
@@ -547,6 +565,9 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   isQuitting = true;
   stopPomodoroTrayTimer();
+  if (notificationManager) {
+    notificationManager.shutdown();
+  }
   if (tracker) {
     tracker.shutdown();
   }

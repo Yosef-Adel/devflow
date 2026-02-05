@@ -210,6 +210,50 @@ export function SettingsPage() {
     setLaunchAtStartup(newValue);
   };
 
+  // Notification settings state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [breakRemindersEnabled, setBreakRemindersEnabled] = useState(true);
+  const [breakIntervalMinutes, setBreakIntervalMinutes] = useState(60);
+
+  const fetchNotificationSettings = async () => {
+    const [notifEnabled, breakEnabled, breakInterval] = await Promise.all([
+      window.electronAPI.getSetting("notifications_enabled"),
+      window.electronAPI.getSetting("break_reminders_enabled"),
+      window.electronAPI.getSetting("break_interval_minutes"),
+    ]);
+    setNotificationsEnabled(notifEnabled !== "false");
+    setBreakRemindersEnabled(breakEnabled !== "false");
+    setBreakIntervalMinutes(
+      breakInterval ? parseInt(breakInterval, 10) || 60 : 60,
+    );
+  };
+
+  const handleToggleNotifications = async () => {
+    const newValue = !notificationsEnabled;
+    await window.electronAPI.setSetting(
+      "notifications_enabled",
+      String(newValue),
+    );
+    setNotificationsEnabled(newValue);
+  };
+
+  const handleToggleBreakReminders = async () => {
+    const newValue = !breakRemindersEnabled;
+    await window.electronAPI.setSetting(
+      "break_reminders_enabled",
+      String(newValue),
+    );
+    setBreakRemindersEnabled(newValue);
+  };
+
+  const handleBreakIntervalChange = async (minutes: number) => {
+    await window.electronAPI.setSetting(
+      "break_interval_minutes",
+      String(minutes),
+    );
+    setBreakIntervalMinutes(minutes);
+  };
+
   // Idle timeout state
   const [idleTimeout, setIdleTimeout] = useState(120);
 
@@ -258,6 +302,7 @@ export function SettingsPage() {
     fetchExcludedApps();
     fetchLoginItemSettings();
     fetchIdleTimeout();
+    fetchNotificationSettings();
     window.electronAPI.updater.getVersion().then(setAppVersion);
   }, []);
 
@@ -397,7 +442,9 @@ export function SettingsPage() {
               </div>
               <select
                 value={idleTimeout}
-                onChange={(e) => handleIdleTimeoutChange(Number(e.target.value))}
+                onChange={(e) =>
+                  handleIdleTimeoutChange(Number(e.target.value))
+                }
                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/20"
               >
                 <option value={60}>1 minute</option>
@@ -412,52 +459,8 @@ export function SettingsPage() {
           </div>
         </Card>
 
-        {/* Work Hours - Coming Soon */}
-        <Card className="relative">
-          <ComingSoonOverlay />
-          <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">
-            Work Hours
-          </p>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-medium text-white">Daily Goal</p>
-                <p className="text-xs text-grey-500">Target hours per day</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="w-8 h-8 rounded-lg bg-white/5 text-grey-400 flex items-center justify-center">
-                  -
-                </button>
-                <span className="text-white font-medium w-12 text-center">
-                  8h
-                </span>
-                <button className="w-8 h-8 rounded-lg bg-white/5 text-grey-400 flex items-center justify-center">
-                  +
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
-              <div>
-                <p className="text-sm font-medium text-white">Work Schedule</p>
-                <p className="text-xs text-grey-500">Your typical hours</p>
-              </div>
-              <span className="text-sm text-grey-500">8:00 - 18:00</span>
-            </div>
-
-            <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
-              <div>
-                <p className="text-sm font-medium text-white">Work Days</p>
-                <p className="text-xs text-grey-500">Days to track</p>
-              </div>
-              <span className="text-sm text-grey-500">Mon - Fri</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* Notifications - Coming Soon */}
-        <Card className="relative">
-          <ComingSoonOverlay />
+        {/* Notifications */}
+        <Card>
           <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">
             Notifications
           </p>
@@ -468,11 +471,20 @@ export function SettingsPage() {
                   Show Notifications
                 </p>
                 <p className="text-xs text-grey-500">
-                  Daily summaries & alerts
+                  Goal alerts & break reminders
                 </p>
               </div>
-              <button className="relative w-11 h-6 rounded-full bg-primary">
-                <div className="absolute top-1 left-6 w-4 h-4 bg-white rounded-full" />
+              <button
+                onClick={handleToggleNotifications}
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  notificationsEnabled ? "bg-primary" : "bg-grey-700"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+                    notificationsEnabled ? "left-6" : "left-1"
+                  }`}
+                />
               </button>
             </div>
 
@@ -483,8 +495,17 @@ export function SettingsPage() {
                 </p>
                 <p className="text-xs text-grey-500">Remind to take breaks</p>
               </div>
-              <button className="relative w-11 h-6 rounded-full bg-primary">
-                <div className="absolute top-1 left-6 w-4 h-4 bg-white rounded-full" />
+              <button
+                onClick={handleToggleBreakReminders}
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  breakRemindersEnabled ? "bg-primary" : "bg-grey-700"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+                    breakRemindersEnabled ? "left-6" : "left-1"
+                  }`}
+                />
               </button>
             </div>
 
@@ -493,8 +514,18 @@ export function SettingsPage() {
                 <p className="text-sm font-medium text-white">Break Interval</p>
                 <p className="text-xs text-grey-500">Time between breaks</p>
               </div>
-              <select className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white">
+              <select
+                value={breakIntervalMinutes}
+                onChange={(e) =>
+                  handleBreakIntervalChange(Number(e.target.value))
+                }
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/20"
+              >
+                <option value={30}>30 minutes</option>
+                <option value={45}>45 minutes</option>
                 <option value={60}>1 hour</option>
+                <option value={90}>1.5 hours</option>
+                <option value={120}>2 hours</option>
               </select>
             </div>
           </div>

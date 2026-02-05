@@ -155,8 +155,6 @@ export function HomePage() {
     day: "numeric",
   });
 
-  const workDayPercent = Math.min(100, Math.round((totalTime / (8 * 60 * 60 * 1000)) * 100));
-
   return (
     <div className="p-6">
       {/* Header */}
@@ -311,19 +309,11 @@ export function HomePage() {
 
         {/* Right Sidebar */}
         <div className="xl:col-span-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-4">
-          {/* Work Hours */}
+          {/* Total Time */}
           <Card>
-            <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-3">Work Hours</p>
-            <div className="flex flex-wrap items-baseline justify-between gap-4 mb-4">
-              <div>
-                <p className="text-[11px] text-grey-500 mb-1">Total time</p>
-                <p className="text-2xl xl:text-3xl font-semibold text-white">{formatDuration(totalTime)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[11px] text-grey-500 mb-1">Of work day</p>
-                <p className="text-xl xl:text-2xl font-semibold text-white">{workDayPercent}%</p>
-                <p className="text-[10px] text-grey-500">of 8hr</p>
-              </div>
+            <div className="mb-4">
+              <p className="text-[11px] text-grey-500 mb-1">Total time</p>
+              <p className="text-2xl xl:text-3xl font-semibold text-white">{formatDuration(totalTime)}</p>
             </div>
             <div className="flex items-center justify-between text-xs text-grey-500">
               <span>

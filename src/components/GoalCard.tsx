@@ -8,27 +8,12 @@ interface DailyGoal {
   targetMs: number;
 }
 
-const STORAGE_KEY = "daily-goals";
 const DEFAULT_GOALS: DailyGoal[] = [
   { categoryName: "development", targetMs: 14400000 }, // 4h
 ];
 
-function loadGoals(): DailyGoal[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return DEFAULT_GOALS;
-}
-
-function saveGoals(goals: DailyGoal[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
-}
+const DB_KEY = "daily_goals";
+const OLD_STORAGE_KEY = "daily-goals";
 
 function formatHours(ms: number): string {
   const hours = ms / 3600000;
@@ -94,11 +79,43 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ categoryBreakdown }: GoalCardProps) {
-  const [goals, setGoals] = useState<DailyGoal[]>(loadGoals);
+  const [goals, setGoals] = useState<DailyGoal[]>(DEFAULT_GOALS);
   const [editing, setEditing] = useState(false);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [newHours, setNewHours] = useState("1");
+
+  // Load goals from DB on mount, with one-time localStorage migration
+  useEffect(() => {
+    (async () => {
+      const dbValue = await window.electronAPI.getSetting(DB_KEY);
+      if (dbValue) {
+        try {
+          const parsed = JSON.parse(dbValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setGoals(parsed);
+          }
+        } catch {
+          // ignore bad JSON
+        }
+      } else {
+        // One-time migration from localStorage
+        try {
+          const old = localStorage.getItem(OLD_STORAGE_KEY);
+          if (old) {
+            const parsed = JSON.parse(old);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setGoals(parsed);
+              await window.electronAPI.setSetting(DB_KEY, JSON.stringify(parsed));
+            }
+            localStorage.removeItem(OLD_STORAGE_KEY);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (editing) {
@@ -116,6 +133,11 @@ export function GoalCard({ categoryBreakdown }: GoalCardProps) {
     return match?.category_color ?? "#64748B";
   };
 
+  const persistGoals = (updated: DailyGoal[]) => {
+    setGoals(updated);
+    window.electronAPI.setSetting(DB_KEY, JSON.stringify(updated));
+  };
+
   const addGoal = () => {
     if (!newCategory || !newHours) return;
     const hours = parseFloat(newHours);
@@ -123,16 +145,14 @@ export function GoalCard({ categoryBreakdown }: GoalCardProps) {
     if (goals.some((g) => g.categoryName === newCategory)) return;
 
     const updated = [...goals, { categoryName: newCategory, targetMs: hours * 3600000 }];
-    setGoals(updated);
-    saveGoals(updated);
+    persistGoals(updated);
     setNewCategory("");
     setNewHours("1");
   };
 
   const removeGoal = (categoryName: string) => {
     const updated = goals.filter((g) => g.categoryName !== categoryName);
-    setGoals(updated);
-    saveGoals(updated);
+    persistGoals(updated);
   };
 
   // Filter out categories already in goals for the dropdown

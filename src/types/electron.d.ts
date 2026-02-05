@@ -278,6 +278,10 @@ export interface ElectronAPI {
   getLoginItemSettings: () => Promise<{ openAtLogin: boolean }>;
   setLoginItemSettings: (openAtLogin: boolean) => Promise<void>;
 
+  // Generic settings
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<void>;
+
   // Shell
   openExternal(url: string): Promise<void>;
 }

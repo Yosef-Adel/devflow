@@ -381,6 +381,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setLoginItemSettings: (openAtLogin: boolean): Promise<void> =>
     ipcRenderer.invoke("app:setLoginItemSettings", openAtLogin),
 
+  // Generic settings
+  getSetting: (key: string): Promise<string | null> =>
+    ipcRenderer.invoke("tracker:getSetting", key),
+
+  setSetting: (key: string, value: string): Promise<void> =>
+    ipcRenderer.invoke("tracker:setSetting", key, value),
+
   // Shell
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("shell:openExternal", url),
