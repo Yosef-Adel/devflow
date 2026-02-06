@@ -1,5 +1,5 @@
 import { gte, lte, and, sql, desc, isNotNull, eq, like, inArray, isNull } from "drizzle-orm";
-import { getDb, activities, sessions, categories, projects, pomodoroSessions, excludedApps, settings, type Activity, type Session } from "../db";
+import { getDb, activities, sessions, categories, projects, pomodoroSessions, excludedApps, settings, categoryRules, type Activity, type Session } from "../db";
 
 // Re-export types for external use
 export type { Activity, Session };
@@ -1082,6 +1082,229 @@ class ActivityDatabase {
   close(): void {
     // Drizzle handles connection management
   }
+
+  // --- Data Export/Import ---
+
+  exportAllData(): {
+    categories: Array<Record<string, unknown>>;
+    categoryRules: Array<Record<string, unknown>>;
+    projects: Array<Record<string, unknown>>;
+    sessions: Array<Record<string, unknown>>;
+    activities: Array<Record<string, unknown>>;
+    pomodoroSessions: Array<Record<string, unknown>>;
+    excludedApps: Array<Record<string, unknown>>;
+    settings: Array<Record<string, unknown>>;
+  } {
+    return {
+      categories: this.db.select().from(categories).all(),
+      categoryRules: this.db.select().from(categoryRules).all(),
+      projects: this.db.select().from(projects).all(),
+      sessions: this.db.select().from(sessions).all(),
+      activities: this.db.select().from(activities).all(),
+      pomodoroSessions: this.db.select().from(pomodoroSessions).all(),
+      excludedApps: this.db.select().from(excludedApps).all(),
+      settings: this.db.select().from(settings).all(),
+    };
+  }
+
+  importData(data: {
+    categories?: Array<Record<string, unknown>>;
+    categoryRules?: Array<Record<string, unknown>>;
+    projects?: Array<Record<string, unknown>>;
+    sessions?: Array<Record<string, unknown>>;
+    activities?: Array<Record<string, unknown>>;
+    pomodoroSessions?: Array<Record<string, unknown>>;
+    excludedApps?: Array<Record<string, unknown>>;
+    settings?: Array<Record<string, unknown>>;
+  }): { imported: number } {
+    let imported = 0;
+
+    // Use raw SQL transaction for atomicity
+    const rawDb = this.db as unknown as { $client: { exec: (sql: string) => void } };
+    rawDb.$client.exec("BEGIN TRANSACTION");
+
+    try {
+      // Clear all existing data in reverse dependency order
+      this.db.delete(activities).run();
+      this.db.delete(sessions).run();
+      this.db.delete(pomodoroSessions).run();
+      this.db.delete(categoryRules).run();
+      this.db.delete(projects).run();
+      this.db.delete(categories).run();
+      this.db.delete(excludedApps).run();
+      this.db.delete(settings).run();
+
+      // Insert in dependency order
+
+      // 1. Categories (no dependencies)
+      if (data.categories) {
+        for (const cat of data.categories) {
+          this.db
+            .insert(categories)
+            .values({
+              id: cat.id as number,
+              name: cat.name as string,
+              color: cat.color as string,
+              isDefault: (cat.isDefault ?? cat.is_default ?? 1) as number,
+              priority: (cat.priority ?? 0) as number,
+              isPassive: (cat.isPassive ?? cat.is_passive ?? 0) as number,
+              productivityType: (cat.productivityType ?? cat.productivity_type ?? "neutral") as string,
+              createdAt: (cat.createdAt ?? cat.created_at ?? null) as string | null,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 2. Category rules (depends on categories)
+      if (data.categoryRules) {
+        for (const rule of data.categoryRules) {
+          this.db
+            .insert(categoryRules)
+            .values({
+              id: rule.id as number,
+              categoryId: (rule.categoryId ?? rule.category_id) as number,
+              type: rule.type as string,
+              pattern: rule.pattern as string,
+              matchMode: (rule.matchMode ?? rule.match_mode ?? "contains") as string,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 3. Projects (no dependencies)
+      if (data.projects) {
+        for (const proj of data.projects) {
+          this.db
+            .insert(projects)
+            .values({
+              id: proj.id as number,
+              name: proj.name as string,
+              color: proj.color as string,
+              createdAt: (proj.createdAt ?? proj.created_at ?? null) as string | null,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 4. Pomodoro sessions (depends on categories)
+      if (data.pomodoroSessions) {
+        for (const pomo of data.pomodoroSessions) {
+          this.db
+            .insert(pomodoroSessions)
+            .values({
+              id: pomo.id as number,
+              type: pomo.type as string,
+              startTime: (pomo.startTime ?? pomo.start_time) as number,
+              endTime: (pomo.endTime ?? pomo.end_time ?? null) as number | null,
+              duration: pomo.duration as number,
+              completed: (pomo.completed ?? 0) as number,
+              label: (pomo.label ?? null) as string | null,
+              categoryId: (pomo.categoryId ?? pomo.category_id ?? null) as number | null,
+              notes: (pomo.notes ?? null) as string | null,
+              createdAt: (pomo.createdAt ?? pomo.created_at ?? null) as string | null,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 5. Sessions (depends on categories, projects)
+      if (data.sessions) {
+        for (const sess of data.sessions) {
+          this.db
+            .insert(sessions)
+            .values({
+              id: sess.id as number,
+              appName: (sess.appName ?? sess.app_name) as string,
+              categoryId: (sess.categoryId ?? sess.category_id ?? null) as number | null,
+              projectId: (sess.projectId ?? sess.project_id ?? null) as number | null,
+              startTime: (sess.startTime ?? sess.start_time) as number,
+              endTime: (sess.endTime ?? sess.end_time) as number,
+              totalDuration: (sess.totalDuration ?? sess.total_duration ?? 0) as number,
+              activityCount: (sess.activityCount ?? sess.activity_count ?? 0) as number,
+              isManual: (sess.isManual ?? sess.is_manual ?? 0) as number,
+              notes: (sess.notes ?? null) as string | null,
+              createdAt: (sess.createdAt ?? sess.created_at ?? null) as string | null,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 6. Activities (depends on sessions, categories, pomodoro)
+      if (data.activities) {
+        for (const act of data.activities) {
+          this.db
+            .insert(activities)
+            .values({
+              id: act.id as number,
+              sessionId: (act.sessionId ?? act.session_id ?? null) as number | null,
+              appName: (act.appName ?? act.app_name) as string,
+              windowTitle: (act.windowTitle ?? act.window_title ?? null) as string | null,
+              url: (act.url ?? null) as string | null,
+              categoryId: (act.categoryId ?? act.category_id ?? null) as number | null,
+              projectName: (act.projectName ?? act.project_name ?? null) as string | null,
+              fileName: (act.fileName ?? act.file_name ?? null) as string | null,
+              fileType: (act.fileType ?? act.file_type ?? null) as string | null,
+              language: (act.language ?? null) as string | null,
+              domain: (act.domain ?? null) as string | null,
+              startTime: (act.startTime ?? act.start_time) as number,
+              endTime: (act.endTime ?? act.end_time) as number,
+              duration: act.duration as number,
+              contextJson: (act.contextJson ?? act.context_json ?? null) as string | null,
+              pomodoroId: (act.pomodoroId ?? act.pomodoro_id ?? null) as number | null,
+              createdAt: (act.createdAt ?? act.created_at ?? null) as string | null,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 7. Excluded apps (no dependencies)
+      if (data.excludedApps) {
+        for (const app of data.excludedApps) {
+          this.db
+            .insert(excludedApps)
+            .values({
+              id: app.id as number,
+              appName: (app.appName ?? app.app_name) as string,
+              createdAt: (app.createdAt ?? app.created_at ?? null) as string | null,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      // 8. Settings (no dependencies)
+      if (data.settings) {
+        for (const setting of data.settings) {
+          this.db
+            .insert(settings)
+            .values({
+              key: setting.key as string,
+              value: setting.value as string,
+            })
+            .run();
+          imported++;
+        }
+      }
+
+      rawDb.$client.exec("COMMIT");
+    } catch (error) {
+      rawDb.$client.exec("ROLLBACK");
+      throw error;
+    }
+
+    // Reset current session tracking after import
+    this.currentSessionId = null;
+    this.currentSessionAppName = null;
+
+    return { imported };
+  }
+
 }
 
 export default ActivityDatabase;

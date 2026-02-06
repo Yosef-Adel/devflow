@@ -402,4 +402,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Shell
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("shell:openExternal", url),
+
+  // Data Export/Import
+  exportToJSON: (): Promise<{ success: boolean; cancelled?: boolean; filePath?: string; error?: string }> =>
+    ipcRenderer.invoke("data:exportJSON"),
+
+  importFromJSON: (): Promise<{ success: boolean; cancelled?: boolean; imported?: number; error?: string }> =>
+    ipcRenderer.invoke("data:importJSON"),
 });

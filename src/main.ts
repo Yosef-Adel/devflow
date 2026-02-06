@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog } from "electron";
+import * as fs from "node:fs";
 import path from "node:path";
 import started from "electron-squirrel-startup";
 import { TimeTracker } from "./main/tracker";
@@ -558,6 +559,66 @@ ipcMain.handle("tracker:setSetting", (_event, key: string, value: string) => {
 // Shell
 ipcMain.handle("shell:openExternal", (_event, url: string) => {
   shell.openExternal(url);
+});
+
+// Data Export/Import
+ipcMain.handle("data:exportJSON", async () => {
+  try {
+    const dateStr = new Date().toISOString().split("T")[0];
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: "Export Data",
+      defaultPath: `activity-tracker-backup-${dateStr}.json`,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+
+    if (canceled || !filePath) {
+      return { success: false, cancelled: true };
+    }
+
+    const data = tracker?.getDatabase().exportAllData();
+    const exportObj = {
+      version: "1.0",
+      exportedAt: new Date().toISOString(),
+      data,
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(exportObj, null, 2), "utf-8");
+    return { success: true, filePath };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("data:importJSON", async () => {
+  try {
+    const { filePaths, canceled } = await dialog.showOpenDialog({
+      title: "Import Backup",
+      filters: [{ name: "JSON", extensions: ["json"] }],
+      properties: ["openFile"],
+    });
+
+    if (canceled || !filePaths.length) {
+      return { success: false, cancelled: true };
+    }
+
+    const content = fs.readFileSync(filePaths[0], "utf-8");
+    const parsed = JSON.parse(content);
+
+    // Validate structure
+    if (!parsed.version || !parsed.data) {
+      return { success: false, error: "Invalid backup file format" };
+    }
+
+    const result = tracker?.getDatabase().importData(parsed.data);
+
+    // Reload categorizer to pick up new categories/rules
+    tracker?.reloadCategories();
+    tracker?.reloadExcludedApps();
+
+    return { success: true, imported: result?.imported ?? 0 };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
 });
 
 // Logger IPC handlers

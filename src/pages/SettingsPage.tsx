@@ -287,11 +287,51 @@ export function SettingsPage() {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
+  // Export/Import state
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isConfirmingImportJSON, setIsConfirmingImportJSON] = useState(false);
+  const [exportMessage, setExportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [importMessage, setImportMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const handleClearAllData = async () => {
     setIsClearing(true);
     await window.electronAPI.clearAllData();
     setIsClearing(false);
     setIsConfirmingClear(false);
+  };
+
+  const handleExportJSON = async () => {
+    setIsExporting(true);
+    setExportMessage(null);
+    const result = await window.electronAPI.exportToJSON();
+    setIsExporting(false);
+    if (result.cancelled) return;
+    if (result.success) {
+      setExportMessage({ type: "success", text: "Backup saved successfully" });
+    } else {
+      setExportMessage({ type: "error", text: result.error ?? "Export failed" });
+    }
+    setTimeout(() => setExportMessage(null), 3000);
+  };
+
+  const handleImportJSON = async () => {
+    setIsImporting(true);
+    setImportMessage(null);
+    const result = await window.electronAPI.importFromJSON();
+    setIsImporting(false);
+    setIsConfirmingImportJSON(false);
+    if (result.cancelled) return;
+    if (result.success) {
+      setImportMessage({ type: "success", text: `Imported ${result.imported ?? 0} records` });
+      // Refresh data
+      fetchCategories();
+      fetchProjects();
+      fetchExcludedApps();
+    } else {
+      setImportMessage({ type: "error", text: result.error ?? "Import failed" });
+    }
+    setTimeout(() => setImportMessage(null), 3000);
   };
 
   const fetchExcludedApps = async () => {
@@ -1296,7 +1336,89 @@ export function SettingsPage() {
             Data
           </p>
           <div className="space-y-2">
+            {/* Export Section */}
+            <div className="py-3">
+              <p className="text-sm font-medium text-white">Export Data</p>
+              <p className="text-xs text-grey-500 mb-3">Download your activity history</p>
+              <button
+                onClick={handleExportJSON}
+                disabled={isExporting}
+                className="px-4 py-2 text-xs rounded-lg bg-primary text-white hover:bg-primary-dark disabled:opacity-50 transition-all flex items-center gap-2"
+              >
+                {isExporting ? (
+                  <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                )}
+                Export Backup
+              </button>
+              {exportMessage && (
+                <p className={`text-xs mt-2 ${exportMessage.type === "success" ? "text-success" : "text-error"}`}>
+                  {exportMessage.text}
+                </p>
+              )}
+            </div>
+
+            {/* Import Section */}
+            <div className="py-3 border-t border-white/[0.06]">
+              <p className="text-sm font-medium text-white">Import Data</p>
+              <p className="text-xs text-grey-500 mb-3">Restore from backup</p>
+              {isConfirmingImportJSON ? (
+                <div className="px-3 py-2.5 bg-warning/5 border border-warning/20 rounded-lg">
+                  <p className="text-xs text-grey-300 mb-2">
+                    This will <strong className="text-white">replace all existing data</strong>. Make sure you have a backup if needed.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsConfirmingImportJSON(false)}
+                      disabled={isImporting}
+                      className="px-3 py-1 text-xs text-grey-400 hover:text-white rounded-md hover:bg-white/5 transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleImportJSON}
+                      disabled={isImporting}
+                      className="px-3 py-1 text-xs rounded-md bg-warning text-black hover:bg-warning/80 transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isImporting ? (
+                        <>
+                          <div className="w-3 h-3 border border-black/30 border-t-black rounded-full animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        "Continue Import"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsConfirmingImportJSON(true)}
+                  disabled={isImporting}
+                  className="px-4 py-2 text-xs rounded-lg bg-white/10 text-white hover:bg-white/15 disabled:opacity-50 transition-all flex items-center gap-2"
+                >
+                  {isImporting ? (
+                    <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m4-8l-4-4m0 0L16 8m4-4v12" />
+                    </svg>
+                  )}
+                  Import Backup
+                </button>
+              )}
+              {importMessage && (
+                <p className={`text-xs mt-2 ${importMessage.type === "success" ? "text-success" : "text-error"}`}>
+                  {importMessage.text}
+                </p>
+              )}
+            </div>
+
             {/* Clear All Data — functional with confirmation */}
+            <div className="border-t border-white/[0.06]" />
             {!isConfirmingClear ? (
               <button
                 onClick={() => setIsConfirmingClear(true)}

@@ -47,15 +47,24 @@ export function initAutoUpdater(
   });
 
   autoUpdater.on("error", (err) => {
-    onStatusChange({ state: "error", error: err.message });
+    // Log the error but don't notify users - this prevents showing errors
+    // when the release YAML files aren't published (common with Electron Forge)
+    log.warn("Update error:", err.message);
   });
 
   // Check on startup after a delay so the app loads first
-  setTimeout(() => autoUpdater.checkForUpdates(), 10_000);
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      // Silently catch network/configuration errors
+      log.warn("Auto-update check failed:", err.message);
+    });
+  }, 10_000);
 }
 
 export function checkForUpdates() {
-  autoUpdater.checkForUpdates();
+  autoUpdater.checkForUpdates().catch((err) => {
+    log.warn("Manual update check failed:", err.message);
+  });
 }
 
 export function downloadUpdate() {

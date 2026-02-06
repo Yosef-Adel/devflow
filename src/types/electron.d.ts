@@ -168,6 +168,20 @@ export interface UpdateStatus {
   error?: string;
 }
 
+export interface ExportResult {
+  success: boolean;
+  cancelled?: boolean;
+  filePath?: string;
+  error?: string;
+}
+
+export interface ImportResult {
+  success: boolean;
+  cancelled?: boolean;
+  imported?: number;
+  error?: string;
+}
+
 export interface ElectronAPI {
   // Tracker status
   getTrackerStatus: () => Promise<TrackerStatus | null>;
@@ -292,6 +306,10 @@ export interface ElectronAPI {
 
   // Shell
   openExternal(url: string): Promise<void>;
+
+  // Data Export/Import
+  exportToJSON(): Promise<ExportResult>;
+  importFromJSON(): Promise<ImportResult>;
 }
 
 declare global {
