@@ -1,5 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
-import { Card, ScoreCircle, GoalCard } from "../components";
+import {
+  Card,
+  ScoreCircle,
+  GoalCard,
+  SkeletonTimeline,
+  SkeletonActivityFeed,
+  SkeletonStatCard,
+  SkeletonListCard,
+  SkeletonGoalCard,
+} from "../components";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   fetchTrackerStatus,
@@ -50,6 +59,8 @@ export function HomePage() {
   const [shortsTime, setShortsTime] = useState<{ total_duration: number; count: number }>({ total_duration: 0, count: 0 });
   const [categoryList, setCategoryList] = useState<CategoryInfo[]>([]);
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Build a lookup set of productive category names from user settings
   const productiveCategoryNames = useMemo(() => {
@@ -116,6 +127,14 @@ export function HomePage() {
     return hours;
   }, [hourlyPattern]);
 
+  const handleViewModeChange = (mode: "day" | "week") => {
+    if (mode === viewMode) return;
+    setIsTransitioning(true);
+    setViewMode(mode);
+    // Let the fade-out happen, then data loads, then fade-in
+    setTimeout(() => setIsTransitioning(false), 150);
+  };
+
   useEffect(() => {
     dispatch(fetchTrackerStatus());
     if (viewMode === "day") {
@@ -126,13 +145,19 @@ export function HomePage() {
   }, [dispatch, viewMode]);
 
   useEffect(() => {
-    dispatch(fetchDashboardData({ start: dateRange.start, end: dateRange.end }));
-    dispatch(fetchActivities({ start: dateRange.start, end: dateRange.end }));
-    dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end }));
-    window.electronAPI.getHourlyPattern(dateRange.start, dateRange.end).then(setHourlyPattern);
-    window.electronAPI.getDomainUsage(dateRange.start, dateRange.end).then(setDomainUsage);
-    window.electronAPI.getShortsTime(dateRange.start, dateRange.end).then(setShortsTime);
-    window.electronAPI.getCategories().then(setCategoryList);
+    const loadData = async () => {
+      await Promise.all([
+        dispatch(fetchDashboardData({ start: dateRange.start, end: dateRange.end })),
+        dispatch(fetchActivities({ start: dateRange.start, end: dateRange.end })),
+        dispatch(fetchSessions({ start: dateRange.start, end: dateRange.end })),
+        window.electronAPI.getHourlyPattern(dateRange.start, dateRange.end).then(setHourlyPattern),
+        window.electronAPI.getDomainUsage(dateRange.start, dateRange.end).then(setDomainUsage),
+        window.electronAPI.getShortsTime(dateRange.start, dateRange.end).then(setShortsTime),
+        window.electronAPI.getCategories().then(setCategoryList),
+      ]);
+      setIsInitialLoad(false);
+    };
+    loadData();
 
     const unsubscribe = window.electronAPI.onActivityChanged((activity) => {
       dispatch(setCurrentActivity(activity));
@@ -164,7 +189,7 @@ export function HomePage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setViewMode("day")}
+            onClick={() => handleViewModeChange("day")}
             className={`px-4 py-1.5 text-sm rounded-md transition-all ${
               viewMode === "day"
                 ? "bg-white/10 text-white"
@@ -174,7 +199,7 @@ export function HomePage() {
             Day
           </button>
           <button
-            onClick={() => setViewMode("week")}
+            onClick={() => handleViewModeChange("week")}
             className={`px-4 py-1.5 text-sm rounded-md transition-all ${
               viewMode === "week"
                 ? "bg-white/10 text-white"
@@ -186,7 +211,26 @@ export function HomePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+      {isInitialLoad ? (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <div className="xl:col-span-8 space-y-4">
+            <SkeletonTimeline />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <SkeletonActivityFeed />
+              <SkeletonListCard />
+            </div>
+          </div>
+          <div className="xl:col-span-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-4">
+            <SkeletonStatCard />
+            <SkeletonGoalCard />
+            <SkeletonListCard />
+            <SkeletonListCard />
+            <SkeletonListCard />
+            <SkeletonListCard />
+          </div>
+        </div>
+      ) : (
+      <div className={`grid grid-cols-1 xl:grid-cols-12 gap-4 transition-opacity duration-150 ${isTransitioning ? "opacity-50" : "opacity-100"}`}>
         {/* Main Content - Left Side */}
         <div className="xl:col-span-8 space-y-4">
           {/* Timeline Card */}
@@ -268,7 +312,10 @@ export function HomePage() {
                   </div>
                 ))}
                 {sessions.length === 0 && (
-                  <p className="text-grey-500 text-sm">No activity yet</p>
+                  <div className="text-center py-4">
+                    <p className="text-grey-400 text-sm mb-1">No activity recorded</p>
+                    <p className="text-grey-600 text-xs">Start using apps to see your timeline</p>
+                  </div>
                 )}
               </div>
             </Card>
@@ -300,7 +347,10 @@ export function HomePage() {
                   );
                 })}
                 {projectTime.length === 0 && (
-                  <p className="text-grey-500 text-sm">No projects yet — assign sessions in Activities</p>
+                  <div className="text-center py-4">
+                    <p className="text-grey-400 text-sm mb-1">No projects assigned</p>
+                    <p className="text-grey-600 text-xs">Create projects in Settings, then assign sessions in Activities</p>
+                  </div>
                 )}
               </div>
             </Card>
@@ -392,7 +442,10 @@ export function HomePage() {
                 );
               })}
               {categoryBreakdown.length === 0 && (
-                <p className="text-grey-500 text-sm">No data yet</p>
+                <div className="text-center py-4">
+                  <p className="text-grey-400 text-sm mb-1">No categories tracked</p>
+                  <p className="text-grey-600 text-xs">Activity will be categorized automatically</p>
+                </div>
               )}
             </div>
           </Card>
@@ -409,7 +462,10 @@ export function HomePage() {
                 </div>
               ))}
               {domainUsage.length === 0 && (
-                <p className="text-grey-500 text-sm">No websites tracked yet</p>
+                <div className="text-center py-4">
+                  <p className="text-grey-400 text-sm mb-1">No websites visited</p>
+                  <p className="text-grey-600 text-xs">Browse the web to see domain stats</p>
+                </div>
               )}
             </div>
           </Card>
@@ -446,12 +502,16 @@ export function HomePage() {
                 </div>
               ))}
               {appUsage.length === 0 && (
-                <p className="text-grey-500 text-sm">No apps tracked yet</p>
+                <div className="text-center py-4">
+                  <p className="text-grey-400 text-sm mb-1">No apps tracked</p>
+                  <p className="text-grey-600 text-xs">Your most-used apps will appear here</p>
+                </div>
               )}
             </div>
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }

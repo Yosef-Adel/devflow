@@ -272,7 +272,12 @@ export function ReportsPage() {
           <Card>
             <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Time Distribution</p>
             {categoryBreakdown.length === 0 ? (
-              <p className="text-grey-500 text-sm">No data yet</p>
+              <div className="h-[280px] flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-grey-400 text-sm mb-1">No time distribution data</p>
+                  <p className="text-grey-600 text-xs">Track activities to see category breakdown</p>
+                </div>
+              </div>
             ) : (
               <Plot
                 data={[
@@ -307,7 +312,10 @@ export function ReportsPage() {
             <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Daily Activity</p>
             {dailyChartData.dates.length === 0 || dailyChartData.durations.every(d => d === 0) ? (
               <div className="h-[280px] flex items-center justify-center">
-                <p className="text-grey-500 text-sm">No activity data yet</p>
+                <div className="text-center">
+                  <p className="text-grey-400 text-sm mb-1">No daily activity data</p>
+                  <p className="text-grey-600 text-xs">Data will appear after a day of tracking</p>
+                </div>
               </div>
             ) : (
               <Plot
@@ -404,7 +412,12 @@ export function ReportsPage() {
           <Card>
             <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Top Applications</p>
             {appUsage.length === 0 ? (
-              <p className="text-grey-500 text-sm">No data yet</p>
+              <div className="h-[260px] flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-grey-400 text-sm mb-1">No app usage data</p>
+                  <p className="text-grey-600 text-xs">Your top apps will appear here</p>
+                </div>
+              </div>
             ) : (
               <Plot
                 data={[
@@ -463,7 +476,10 @@ export function ReportsPage() {
           <Card>
             <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-4">Category Details</p>
             {categoryBreakdown.length === 0 ? (
-              <p className="text-grey-500 text-sm">No data yet</p>
+              <div className="text-center py-8">
+                <p className="text-grey-400 text-sm mb-1">No category details</p>
+                <p className="text-grey-600 text-xs">Track activities to see detailed breakdown</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -513,7 +529,12 @@ export function ReportsPage() {
             <p className="text-[11px] uppercase tracking-wider text-grey-500 mb-2">Hourly Activity Heatmap</p>
             <p className="text-xs text-grey-600 mb-4">Activity by category throughout the day (minutes)</p>
             {hourlyPattern.length === 0 ? (
-              <p className="text-grey-500 text-sm">No hourly data yet</p>
+              <div className="h-[200px] flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-grey-400 text-sm mb-1">No hourly pattern data</p>
+                  <p className="text-grey-600 text-xs">Activity heatmap will appear after tracking</p>
+                </div>
+              </div>
             ) : (
               <Plot
                 data={[

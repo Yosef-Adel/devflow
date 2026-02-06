@@ -271,6 +271,47 @@ class TimeTracker {
       // If no previous activity to extend, fall through and save normally
     }
 
+    // Handle midnight boundary: split activity if it spans days
+    const startDate = new Date(this.activityStartTime);
+    const endDate = new Date(endTime);
+    const startDay = startDate.toDateString();
+    const endDay = endDate.toDateString();
+
+    if (startDay !== endDay) {
+      // Activity spans midnight - split it
+      this.saveActivitySpan(this.activityStartTime, endTime);
+    } else {
+      // Normal case: same day
+      this.insertActivityRecord(this.activityStartTime, endTime, duration);
+    }
+  }
+
+  // Save an activity that may span multiple days by splitting at midnight boundaries
+  private saveActivitySpan(startTime: number, endTime: number): void {
+    let currentStart = startTime;
+
+    while (currentStart < endTime) {
+      // Get midnight of the next day
+      const startDate = new Date(currentStart);
+      const nextMidnight = new Date(startDate);
+      nextMidnight.setDate(nextMidnight.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 0);
+
+      // Determine end of this segment
+      const segmentEnd = Math.min(nextMidnight.getTime(), endTime);
+      const segmentDuration = segmentEnd - currentStart;
+
+      if (segmentDuration >= 1000) {
+        this.insertActivityRecord(currentStart, segmentEnd, segmentDuration);
+      }
+
+      currentStart = segmentEnd;
+    }
+  }
+
+  private insertActivityRecord(startTime: number, endTime: number, duration: number): void {
+    if (!this.currentActivity) return;
+
     const ctx = this.currentActivity.context;
 
     this.db.insertActivity({
@@ -283,7 +324,7 @@ class TimeTracker {
       file_type: ctx.fileType || null,
       language: ctx.language || null,
       domain: ctx.domain || null,
-      start_time: this.activityStartTime,
+      start_time: startTime,
       end_time: endTime,
       duration,
       context_json: JSON.stringify({
