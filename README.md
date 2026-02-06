@@ -4,6 +4,22 @@ A desktop time tracking app that runs quietly in the background, watches which w
 
 I built this because I wanted an honest picture of how I spend my day on the computer — not what I think I do, but what I actually do.
 
+## Screenshots
+
+![Dashboard](screenshots/dashboard.png)
+
+![Activities](screenshots/activities.png)
+
+![Reports](screenshots/reports.png)
+
+![Reports Details](screenshots/reports-details.png)
+
+![Calendar](screenshots/calendar.png)
+
+![Pomodoro](screenshots/pomodoro.png)
+
+![Settings](screenshots/settings.png)
+
 ## What It Does
 
 - **Automatic tracking** — detects the active window every few seconds, logs the app name, window title, URL, and duration. You don't have to remember to start or stop anything.
