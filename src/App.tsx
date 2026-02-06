@@ -7,56 +7,21 @@ import { HomePage, ActivitiesPage, PomodoroPage, ReportsPage, CalendarPage, Sett
 import type { PermissionsStatus, UpdateStatus } from './types/electron';
 
 function UpdateBanner({ status }: { status: UpdateStatus | null }) {
-  if (!status || status.state === 'checking' || status.state === 'not-available') {
+  if (!status || status.state !== 'available') {
     return null;
   }
 
-  if (status.state === 'available') {
-    return (
-      <div className="bg-primary/90 text-white px-4 py-2 flex items-center justify-between text-sm">
-        <span>Update available: v{status.version}</span>
-        <button
-          onClick={() => window.electronAPI.updater.downloadUpdate()}
-          className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
-        >
-          Download
-        </button>
-      </div>
-    );
-  }
-
-  if (status.state === 'downloading') {
-    return (
-      <div className="bg-info/90 text-white px-4 py-2 flex items-center gap-3 text-sm">
-        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        <span>Downloading update... {status.percent?.toFixed(0)}%</span>
-      </div>
-    );
-  }
-
-  if (status.state === 'downloaded') {
-    return (
-      <div className="bg-success/90 text-white px-4 py-2 flex items-center justify-between text-sm">
-        <span>Update ready! Restart to install v{status.version}</span>
-        <button
-          onClick={() => window.electronAPI.updater.installUpdate()}
-          className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
-        >
-          Restart Now
-        </button>
-      </div>
-    );
-  }
-
-  if (status.state === 'error') {
-    return (
-      <div className="bg-error/90 text-white px-4 py-2 text-sm">
-        Update error: {status.error}
-      </div>
-    );
-  }
-
-  return null;
+  return (
+    <div className="bg-primary/90 text-white px-4 py-2 flex items-center justify-between text-sm">
+      <span>Update available: v{status.version}</span>
+      <button
+        onClick={() => window.electronAPI.updater.downloadUpdate()}
+        className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+      >
+        Download
+      </button>
+    </div>
+  );
 }
 
 function AppContent() {

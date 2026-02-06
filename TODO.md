@@ -94,60 +94,61 @@
 - [x] Monthly calendar view with daily activity heatmap
 - [x] Click a day to see detailed breakdown
 - [x] Color-coded by productivity level
-
-### 🔴 High Priority — Data & Core UX
-
-**Data Export (users need backup capability)**
-- [ ] Export data to CSV
-- [ ] Export data to JSON
-- [ ] Import data from CSV/JSON (backup restore)
-
-**Better Visualizations (dashboard value)**
 - [x] Weekly heatmap (like GitHub contribution graph) — Calendar page has daily heatmap, Reports has hourly heatmap
 - [x] Line charts for trends over time — 3-day moving average trend line on daily activity chart
 - [x] Pie/donut chart for category breakdown — Time Distribution donut chart in Reports
 - [x] Streak tracking (consecutive productive days) — Shows current streak and longest streak in Reports
+- [x] Export data to JSON
+- [x] Import data from JSON (backup restore)
 
-### 🟡 Medium Priority — Enhanced Features
+### Medium Priority — Enhanced Features
 
 **Better Context Detection (developer experience)**
+
 - [ ] JetBrains IDE support (IntelliJ, WebStorm, PyCharm)
 - [ ] Xcode project detection
 - [ ] Better vim/neovim/tmux detection
 
 **Keyboard Shortcuts (power users)**
+
 - [ ] Global hotkey to pause/resume
 - [ ] Global hotkey to start pomodoro
 - [ ] Navigate app with keyboard
 
 **AFK / Idle Improvements (accuracy)**
+
 - [ ] Post-idle prompt: ask user what they were doing while away
 - [ ] Let users retroactively assign idle time to a category/project
 - [ ] Smarter idle merging (short idle gaps within same app don't break sessions)
 
 **Data Retention & Cleanup (long-term users)**
+
 - [ ] Configurable data retention policy (e.g., keep 90 days detailed, aggregate older)
 - [ ] Automatic pruning of old data on schedule
 - [ ] Manual "clear data older than X" option
 - [ ] Database size indicator in settings
 
-### 🟢 Lower Priority — Nice to Have
+### Lower Priority — Nice to Have
 
 **Themes & Appearance**
+
 - [ ] Light/dark theme toggle
 - [ ] Custom accent colors
 - [ ] Compact mode for smaller screens
 
 **Browser Integration (requires extension development)**
+
 - [ ] Browser extension for accurate URL/tab tracking
 - [ ] Track specific tabs/pages not just domain
 
 **App/Website Blocking (complex feature)**
+
 - [ ] Block distracting apps/sites during focus sessions
 - [ ] Configurable block list per category
 - [ ] Soft block (warning notification) vs hard block (redirect/close)
 
 **Platform**
+
 - [ ] Linux Wayland support (when APIs become available)
 
 ---

@@ -1,7 +1,7 @@
 {
   "name": "activity-tracker",
   "productName": "activity-tracker",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "private": true,
@@ -57,7 +57,6 @@
     "drizzle-orm": "^0.45.1",
     "electron-log": "^5.4.3",
     "electron-squirrel-startup": "^1.0.1",
-    "electron-updater": "^6.7.3",
     "get-windows": "^9.2.3",
     "node-addon-api": "^8.5.0",
     "plotly.js": "^3.3.1",

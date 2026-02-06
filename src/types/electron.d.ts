@@ -156,15 +156,9 @@ export interface PermissionsStatus {
 }
 
 export interface UpdateStatus {
-  state:
-    | "checking"
-    | "available"
-    | "not-available"
-    | "downloading"
-    | "downloaded"
-    | "error";
+  state: "checking" | "available" | "not-available" | "error";
   version?: string;
-  percent?: number;
+  downloadUrl?: string;
   error?: string;
 }
 
