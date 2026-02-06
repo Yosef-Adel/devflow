@@ -39,6 +39,7 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     appBundleId: 'com.devflow.app',
+    executableName: 'devflow',
     icon: './src/assets/icon',
     osxSign: {
       identity: 'DevFlow',
