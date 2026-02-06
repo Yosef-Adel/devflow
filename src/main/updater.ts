@@ -3,7 +3,7 @@ import https from "node:https";
 import { log } from "./logger";
 
 const GITHUB_OWNER = "Yosef-Adel";
-const GITHUB_REPO = "activity-tracker";
+const GITHUB_REPO = "devflow";
 const RELEASES_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
 
 export interface UpdateStatus {

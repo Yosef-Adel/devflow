@@ -69,7 +69,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: activity-tracker-${{ matrix.platform }}-${{ matrix.arch }}
+          name: devflow-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             out/make/**/*.exe
             out/make/**/*.dmg

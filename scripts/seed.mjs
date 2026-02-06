@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Seed script for activity-tracker database.
+ * Seed script for devflow database.
  * Generates realistic activity data spanning the last 30 days.
  * Uses sqlite3 CLI to avoid native module version mismatch with Electron.
  *
@@ -15,7 +15,7 @@ import fs from "fs";
 
 const dbPath = path.join(
   os.homedir(),
-  "Library/Application Support/activity-tracker/activity-tracker.db"
+  "Library/Application Support/devflow/devflow.db"
 );
 
 // Ensure dir exists
@@ -77,11 +77,11 @@ const devFiles = [
   { name: "main.go", type: "go", lang: "Go" },
 ];
 
-const projects = ["composable", "activity-tracker", "my-saas", "portfolio", "api-gateway"];
+const projects = ["composable", "devflow", "my-saas", "portfolio", "api-gateway"];
 
 const websites = [
   { domain: "github.com", url: "https://github.com/Yosef-Adel/composable", title: "Yosef-Adel/composable", category: "development", project: "Yosef-Adel/composable" },
-  { domain: "github.com", url: "https://github.com/Yosef-Adel/activity-tracker", title: "Yosef-Adel/activity-tracker", category: "development", project: "Yosef-Adel/activity-tracker" },
+  { domain: "github.com", url: "https://github.com/Yosef-Adel/devflow", title: "Yosef-Adel/devflow", category: "development", project: "Yosef-Adel/devflow" },
   { domain: "stackoverflow.com", url: "https://stackoverflow.com/questions/12345/react-hooks", title: "React hooks question - Stack Overflow", category: "research" },
   { domain: "chat.openai.com", url: "https://chat.openai.com", title: "ChatGPT", category: "research" },
   { domain: "docs.google.com", url: "https://docs.google.com/document/d/abc", title: "Project Spec - Google Docs", category: "productivity" },
@@ -260,7 +260,7 @@ for (let d = 0; d < DAYS; d++) {
 statements.push("COMMIT;");
 
 // Write to temp file and execute (avoid shell argument length limits)
-const tmpFile = path.join(os.tmpdir(), "activity-tracker-seed.sql");
+const tmpFile = path.join(os.tmpdir(), "devflow-seed.sql");
 fs.writeFileSync(tmpFile, statements.join("\n"));
 
 try {

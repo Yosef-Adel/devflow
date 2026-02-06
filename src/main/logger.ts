@@ -18,7 +18,7 @@ export function initLogger() {
 
   // Initialize Electron's crash reporter (local only, no remote submission)
   crashReporter.start({
-    productName: "Activity Tracker",
+    productName: "DevFlow",
     submitURL: "",
     uploadToServer: false,
   });

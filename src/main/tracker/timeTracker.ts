@@ -123,7 +123,7 @@ class TimeTracker {
 
     // Skip tracking the app itself and system UI processes
     const EXCLUDED_APPS = [
-      "Electron", "Activity Tracker", "activity-tracker",
+      "Electron", "DevFlow", "devflow",
       "Dock", "SystemUIServer", "Control Center",
       "Notification Center", "UserNotificationCenter",
     ];

@@ -72,7 +72,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
         {/* Hero */}
         <div className="text-center space-y-3">
           <h1 className="text-4xl font-bold text-white">
-            Welcome to Activity Tracker
+            Welcome to DevFlow
           </h1>
           <p className="text-lg text-grey-400">
             A couple of macOS permissions are needed to track your activities.

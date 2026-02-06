@@ -38,10 +38,10 @@ const config: ForgeConfig = {
     },
   },
   packagerConfig: {
-    appBundleId: 'com.activity-tracker.app',
+    appBundleId: 'com.devflow.app',
     icon: './src/assets/icon',
     osxSign: {
-      identity: 'ActivityTracker',
+      identity: 'DevFlow',
     },
     asar: {
       unpack: '**/*.node',
@@ -53,9 +53,9 @@ const config: ForgeConfig = {
     ],
     extendInfo: {
       NSScreenCaptureUsageDescription:
-        'Activity Tracker needs Screen Recording permission to track which applications and windows you are using.',
+        'DevFlow needs Screen Recording permission to track which applications and windows you are using.',
       NSAppleEventsUsageDescription:
-        'Activity Tracker needs Accessibility permission to detect active windows and track your activity.',
+        'DevFlow needs Accessibility permission to detect active windows and track your activity.',
     },
   },
   rebuildConfig: {
@@ -64,9 +64,9 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       setupIcon: './src/assets/icon.ico',
-      iconUrl: 'https://raw.githubusercontent.com/Yosef-Adel/activity-tracker/main/src/assets/icon.ico',
-      name: 'ActivityTracker',
-      title: 'Activity Tracker',
+      iconUrl: 'https://raw.githubusercontent.com/Yosef-Adel/devflow/main/src/assets/icon.ico',
+      name: 'DevFlow',
+      title: 'DevFlow',
     }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({}),

@@ -15,7 +15,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-6">
         <h1 className="text-lg font-semibold tracking-[0.2em] text-white">
-          TRACKER
+          DEVFLOW
         </h1>
       </div>
 

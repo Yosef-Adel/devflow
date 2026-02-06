@@ -1494,7 +1494,7 @@ export function SettingsPage() {
               <button
                 onClick={() =>
                   window.electronAPI.openExternal(
-                    "https://github.com/Yosef-Adel/activity-tracker/issues/new",
+                    "https://github.com/Yosef-Adel/devflow/issues/new",
                   )
                 }
                 className="text-primary hover:text-primary-light text-sm transition-colors"

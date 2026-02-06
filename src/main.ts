@@ -43,7 +43,7 @@ function createTray() {
   icon.setTemplateImage(true);
 
   tray = new Tray(icon);
-  tray.setToolTip("Activity Tracker");
+  tray.setToolTip("DevFlow");
 
   // Click toggles the context menu
   tray.on("click", () => {
@@ -196,12 +196,12 @@ async function initializeTracker() {
     // Update tray with current activity info
     if (activity) {
       lastActivityLabel = `${activity.appName} — ${activity.categoryName}`;
-      tray?.setToolTip(`Activity Tracker — ${activity.appName}`);
+      tray?.setToolTip(`DevFlow — ${activity.appName}`);
       notificationManager?.onActivityStarted();
       notificationManager?.checkGoals();
     } else {
       lastActivityLabel = "Idle";
-      tray?.setToolTip("Activity Tracker — Idle");
+      tray?.setToolTip("DevFlow — Idle");
       notificationManager?.onIdle();
     }
   });
@@ -254,7 +254,7 @@ function stopPomodoroTrayTimer() {
     pomodoroInterval = null;
   }
   tray?.setTitle("");
-  tray?.setToolTip("Activity Tracker");
+  tray?.setToolTip("DevFlow");
 }
 
 // IPC Handlers - expose tracker data to the renderer process
@@ -567,7 +567,7 @@ ipcMain.handle("data:exportJSON", async () => {
     const dateStr = new Date().toISOString().split("T")[0];
     const { filePath, canceled } = await dialog.showSaveDialog({
       title: "Export Data",
-      defaultPath: `activity-tracker-backup-${dateStr}.json`,
+      defaultPath: `devflow-backup-${dateStr}.json`,
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
 

@@ -1,4 +1,4 @@
-# Activity Tracker
+# DevFlow
 
 A desktop time tracking app that runs quietly in the background, watches which windows you use, and tells you where your time actually goes. Think of it as RescueTime or ActivityWatch, but open source and built with Electron.
 
@@ -22,7 +22,7 @@ I built this because I wanted an honest picture of how I spend my day on the com
 
 ## Download
 
-Grab the latest release for your platform from the [Releases page](https://github.com/Yosef-Adel/activity-tracker/releases). Builds are available for:
+Grab the latest release for your platform from the [Releases page](https://github.com/Yosef-Adel/devflow/releases). Builds are available for:
 
 - **macOS** — ZIP
 - **Windows** — Squirrel installer
@@ -31,7 +31,7 @@ Grab the latest release for your platform from the [Releases page](https://githu
 On macOS, since the app isn't signed with an Apple Developer certificate, macOS will quarantine it. After extracting the app, run this in your terminal before opening it:
 
 ```
-xattr -dr com.apple.quarantine activity-tracker.app
+xattr -dr com.apple.quarantine devflow.app
 ```
 
 The app also needs Accessibility permission to read window titles. It'll walk you through that on first launch. Screen Recording permission is optional but helps with some apps.

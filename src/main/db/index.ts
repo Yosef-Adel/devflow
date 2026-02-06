@@ -330,7 +330,7 @@ const DEFAULT_CATEGORIES: Array<{
 ];
 
 function createDatabase() {
-  const dbName = app.isPackaged ? "activity-tracker.db" : "activity-tracker-dev.db";
+  const dbName = app.isPackaged ? "devflow.db" : "devflow-dev.db";
   const dbPath = path.join(app.getPath("userData"), dbName);
   const sqlite = new Database(dbPath);
 
